@@ -1,0 +1,79 @@
+"use client";
+
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+
+import Topbar from "@/components/Topbar";
+import Sidebar from "@/components/Sidebar";
+import Explorer from "@/components/Explorer";
+import CodeEditor from "@/components/Editor";
+import Console from "@/components/Console";
+import Preview from "@/components/Preview";
+import CustomResizeHandle from "@/components/CustomResizeHandle";
+
+export default function Page() {
+  return (
+    <div className="h-screen w-screen flex flex-col bg-black text-neutral-200 p-2">
+      {/* Topbar */}
+      <div className="h-12 mb-1 border-neutral-800 flex items-center bg-neutral-950">
+        <Topbar />
+      </div>
+
+      {/* Main layout*/}
+      <div className="max-w-screen h-full">
+      <PanelGroup direction="horizontal" className="flex-1">
+        {/* Sidebar (fixed) */}
+        <div className="w-[50px] mr-1 border-neutral-800 bg-neutral-950">
+          <Sidebar />
+        </div>
+
+        {/* Explorer */}
+        <Panel
+          defaultSize={13}
+          minSize={0}
+          maxSize={80}
+          className="bg-neutral-950 border-neutral-800"
+        >
+          <Explorer />
+        </Panel>
+
+        <CustomResizeHandle direction="vertical" />
+
+        {/* Editor + Console */}
+        <Panel
+          defaultSize={60}
+          minSize={30}
+          className="bg-neutral-950 border-neutral-800"
+        >
+          <PanelGroup direction="vertical">
+            <Panel defaultSize={70} minSize={20} className="bg-neutral-950">
+              <CodeEditor />
+            </Panel>
+            <CustomResizeHandle direction="horizontal" />
+            <Panel
+              defaultSize={30}
+              minSize={15}
+              maxSize={80}
+              className="bg-neutral-950 border-neutral-800"
+            >
+              <Console />
+            </Panel>
+          </PanelGroup>
+        </Panel>
+
+        <CustomResizeHandle direction="vertical" />
+
+        {/* Preview */}
+        <Panel
+          defaultSize={25}
+          minSize={0}
+          maxSize={80}
+          className="bg-neutral-950"
+        >
+          <Preview />
+
+        </Panel>
+      </PanelGroup>
+      </div>
+    </div>
+  );
+}
