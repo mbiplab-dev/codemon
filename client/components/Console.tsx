@@ -1,137 +1,111 @@
 "use client";
-import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
-import "@xterm/xterm/css/xterm.css";
+import React, { useState, useRef } from "react";
+import Terminal from "./Terminal";
+import { Plus, X } from "lucide-react";
 
-interface CustomTerminalProps {
-  onCommand?: (cmd: string) => void;
+interface TerminalInstance {
+  id: number;
 }
 
-const CustomTerminal = forwardRef<{ write: (data: string) => void }, CustomTerminalProps>(
-  ({ onCommand }, ref) => {
-    const terminalRef = useRef<HTMLDivElement>(null);
-    const termRef = useRef<any>(null);
-    const fitAddonRef = useRef<any>(null);
+export default function Console() {
+  const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const idCounterRef = useRef(0);
 
-    useEffect(() => {
-      let Terminal: any;
-      let FitAddon: any;
+  const addTerminal = () => {
+    setTerminals((prev) => {
+      const newTerminal = { id: idCounterRef.current++ };
+      const updated = [...prev, newTerminal];
+      setActiveIndex(updated.length - 1); // ✅ Always set to last terminal
+      return updated;
+    });
+  };
 
-      (async () => {
-        const xtermModule = await import("@xterm/xterm");
-        const addonModule = await import("@xterm/addon-fit");
-        Terminal = xtermModule.Terminal;
-        FitAddon = addonModule.FitAddon;
+  const removeTerminal = (index: number) => {
+    setTerminals((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length === 0) {
+        setActiveIndex(null);
+      } else if (activeIndex === index) {
+        setActiveIndex(updated.length - 1); // ✅ Switch to last available terminal
+      } else if (activeIndex !== null && activeIndex > index) {
+        setActiveIndex((prevIndex) => (prevIndex ? prevIndex - 1 : null));
+      }
+      return updated;
+    });
+  };
 
-        if (!terminalRef.current) return;
+  return (
+    <div className="flex h-full w-full bg-[#0a0a0a] border border-neutral-800 rounded-lg">
+      {/* Terminal Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Tabs */}
+        <div className="flex items-center justify-between bg-[#111] border-b border-neutral-800 px-2 h-8 shrink-0">
+          <div className="flex space-x-2">
+            {terminals.map((t, i) => (
+              <div
+                key={t.id}
+                onClick={() => setActiveIndex(i)}
+                className={`flex items-center px-3 py-2 text-sm rounded-t-lg cursor-pointer ${
+                  activeIndex === i
+                    ? "bg-[#1a1a1a] text-orange-400 border-b-2 border-orange-400"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <span>Terminal {t.id + 1}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTerminal(i);
+                  }}
+                  className="ml-2 hover:text-red-400"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={addTerminal}
+            className="p-2 text-gray-400 hover:text-orange-400"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
 
-        const term = new Terminal({
-          cursorBlink: true,
-          fontSize: 14,
-          theme: {
-            background: "#00000000",
-            foreground: "#ffffff",
-            cursor: "#fb923c",
-            cursorAccent: "#0a0a0a",
-          },
-          scrollback: 1000,
-          scrollOnUserInput: false,
-          disableStdin: false,
-        });
-
-        const fitAddon = new FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(terminalRef.current);
-        fitAddon.fit();
-
-        termRef.current = term;
-        fitAddonRef.current = fitAddon;
-
-        const style = document.createElement("style");
-        style.innerHTML = `
-          .xterm-viewport::-webkit-scrollbar {
-            width: 13px;
-          }
-          .xterm-viewport::-webkit-scrollbar-thumb {
-            background-color: #fb923ccc;
-            border-radius: 6px;
-          }
-          .xterm-viewport::-webkit-scrollbar-track {
-            background: transparent;
-          }
-        `;
-        document.head.appendChild(style);
-
-        const viewport = terminalRef.current.querySelector(".xterm-viewport") as HTMLElement;
-        if (viewport) {
-          let timeout: NodeJS.Timeout;
-          viewport.addEventListener("scroll", () => {
-            viewport.classList.add("scrolling");
-            clearTimeout(timeout);
-            timeout = setTimeout(() => viewport.classList.remove("scrolling"), 600);
-          });
-        }
-
-        const prompt = () => term.write("\r\n$ ");
-
-        const banner = ` ██████╗ ██████╗ ██████╗ ███████╗███╗   ███╗ ██████╗ ███╗   ██╗
-██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗ ████║██╔═══██╗████╗  ██║
-██║     ██║   ██║██║  ██║█████╗  ██╔████╔██║██║   ██║██╔██╗ ██║
-██║     ██║   ██║██║  ██║██╔══╝  ██║╚██╔╝██║██║   ██║██║╚██╗██║
-╚██████╗╚██████╔╝██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝██║ ╚████║
- ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-`;
-
-        banner.split("\n").forEach((line, index) => {
-          setTimeout(() => {
-            term.writeln("\x1b[38;5;208m" + line + "\x1b[0m");
-            if (index === banner.split("\n").length - 1) {
-              term.writeln("");
-              prompt();
-            }
-          }, index * 100);
-        });
-
-        let command = "";
-        term.onKey(({ key, domEvent }: any) => {
-          const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
-
-          if (domEvent.key === "Enter") {
-            if (onCommand) onCommand(command);
-            command = "";
-            prompt();
-          } else if (domEvent.key === "Backspace") {
-            if (command.length > 0) {
-              term.write("\b \b");
-              command = command.slice(0, -1);
-            }
-          } else if (printable) {
-            command += key;
-            term.write(key);
-          }
-        });
-
-        const resizeObserver = new ResizeObserver(() => fitAddon.fit());
-        resizeObserver.observe(terminalRef.current);
-
-        return () => {
-          resizeObserver.disconnect();
-          term.dispose();
-        };
-      })();
-    }, [onCommand]);
-
-    useImperativeHandle(ref, () => ({
-      write: (data: string) => {
-        termRef.current?.writeln(data);
-      },
-    }));
-
-    return (
-      <div className="h-full w-full border border-neutral-800 rounded-lg overflow-hidden bg-[#0a0a0a] shadow-lg p-2">
-        <div ref={terminalRef} className="h-full w-full overflow-hidden" />
+        {/* Active Terminal (Scroll only here) */}
+        <div className="flex-1 overflow-hidden">
+          {activeIndex !== null && terminals[activeIndex] ? (
+            <Terminal />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              No terminal open. Click + to add one.
+            </div>
+          )}
+        </div>
       </div>
-    );
-  }
-);
 
-export default CustomTerminal;
+      {/* Right Panel */}
+      <div className="w-48 bg-[#111] border-l border-neutral-800 flex flex-col shrink-0">
+        <div className="p-2 h-8 text-xs text-gray-400 border-b border-neutral-800">
+          Terminals
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {terminals.map((t, i) => (
+            <div
+              key={t.id}
+              onClick={() => setActiveIndex(i)}
+              className={`px-3 py-2 text-sm cursor-pointer ${
+                activeIndex === i
+                  ? "bg-[#1a1a1a] text-orange-400"
+                  : "text-gray-400 hover:bg-[#1a1a1a]"
+              }`}
+            >
+              Terminal {t.id + 1}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,32 +1,38 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Mic, MicOff } from "lucide-react"; // Lucide React icons
+import { Mic, MicOff } from "lucide-react";
 
-// Dummy users with mic status
 const activeUsers = [
-  { name: "Alice", id: 1, mic: true },
-  { name: "Bob", id: 2, mic: false },
-  { name: "Charlie", id: 3, mic: true },
-  { name: "David", id: 4, mic: false },
-  { name: "Eve", id: 5, mic: true },
-  { name: "Alice", id: 1, mic: true },
-  { name: "Bob", id: 2, mic: false },
-  { name: "Charlie", id: 3, mic: true },
-  { name: "David", id: 4, mic: false },
-  { name: "Eve", id: 5, mic: true },
+  { name: "Biplab (you)", id: 14, mic: true },
+  { name: "Bob", id: 24, mic: false },
+  { name: "Charlie", id: 34, mic: true },
+  { name: "David", id: 44, mic: false },
+  { name: "Eve", id: 54, mic: true },
+  { name: "Alice", id: 64, mic: true },
+  { name: "Bob", id: 75, mic: false },
+  { name: "Charlie", id: 86, mic: true },
+  { name: "David", id: 98, mic: false },
+  { name: "Eve", id: 67, mic: true },
 ];
 
-const ActiveUsers = ({
-  users = activeUsers,
-  maxStacked = 6,
-  minHeight = 50,
-}) => {
+const ActiveUsers = ({ users = activeUsers, minHeight = 50 }) => {
   const panelRef = useRef(null);
   const [panelHeight, setPanelHeight] = useState(minHeight);
+  const [maxStacked, setMaxStacked] = useState(6);
+
+  const AVATAR_SIZE = 50; // avatar width in px
+  const AVATAR_MARGIN = 12; // negative margin in px (-space-x-3 = ~12px overlap)
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
         setPanelHeight(entry.contentRect.height);
+
+        // dynamically calculate maxStacked based on width
+        const width = entry.contentRect.width;
+        const possibleStacked = Math.floor(
+          (width + AVATAR_MARGIN) / (AVATAR_SIZE - AVATAR_MARGIN)
+        );
+        setMaxStacked(possibleStacked > 0 ? possibleStacked : 1);
       }
     });
     if (panelRef.current) resizeObserver.observe(panelRef.current);
@@ -41,11 +47,11 @@ const ActiveUsers = ({
     const style = document.createElement("style");
     style.innerHTML = `
       .scrollable::-webkit-scrollbar {
-        width: 13px;
+        width: 7px;
       }
       .scrollable::-webkit-scrollbar-thumb {
         background-color: #fb923ccc;
-        border-radius: 6px;
+        border-radius: 3px;
       }
       .scrollable::-webkit-scrollbar-track {
         background: transparent;
@@ -93,16 +99,37 @@ const ActiveUsers = ({
       ) : (
         <div
           ref={panelRef}
-          className="scrollable w-full h-full bg-[#0a0a0a] border border-neutral-800 rounded-lg overflow-y-auto shadow-lg"
+          className="w-full h-full bg-[#0a0a0a] border border-neutral-800 rounded-lg shadow-lg flex flex-col"
         >
           <div className="min-h-6 px-4 flex items-center text-gray-300 text-xs bg-[#111] border-b border-neutral-800">
             Active Users
           </div>
-          <div className="flex flex-col space-y-2 p-2">
-            {users.map((user, index) => (
+
+          {/* First user pinned */}
+          {users.length > 0 && (
+            <div className="flex items-center justify-between space-x-3 p-2 border-b border-neutral-800">
+              <div className="flex items-center space-x-3">
+                <img
+                  src={getAvatarUrl(users[0].id)}
+                  alt={users[0].name}
+                  className="w-10 h-10 rounded-full border border-neutral-700"
+                />
+                <span className="text-gray-300 text-sm">{users[0].name}</span>
+              </div>
+              {users[0].mic ? (
+                <Mic className="w-5 h-5 text-green-400/80" />
+              ) : (
+                <MicOff className="w-5 h-5 text-red-400/80" />
+              )}
+            </div>
+          )}
+
+          {/* Scrollable list for the rest */}
+          <div className="flex-1 scrollable overflow-y-auto p-2">
+            {users.slice(1).map((user, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between space-x-3"
+                className="flex items-center justify-between space-x-3 mb-2"
               >
                 <div className="flex items-center space-x-3">
                   <img
@@ -112,7 +139,6 @@ const ActiveUsers = ({
                   />
                   <span className="text-gray-300 text-sm">{user.name}</span>
                 </div>
-                {/* Mic icon to the right */}
                 {user.mic ? (
                   <Mic className="w-5 h-5 text-green-400/80" />
                 ) : (
