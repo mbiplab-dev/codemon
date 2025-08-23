@@ -53,6 +53,7 @@ const CustomTerminal = forwardRef<{ write: (data: string) => void }, CustomTermi
           }
           .xterm-viewport::-webkit-scrollbar-thumb {
             background-color: #fb923ccc;
+            border-radius: 6px;
           }
           .xterm-viewport::-webkit-scrollbar-track {
             background: transparent;
@@ -127,7 +128,7 @@ const CustomTerminal = forwardRef<{ write: (data: string) => void }, CustomTermi
 
     return (
       <div className="h-full w-full border border-neutral-800 rounded-lg overflow-hidden bg-[#0a0a0a] shadow-lg p-2">
-        <div ref={terminalRef} className="h-full w-full overflow-hidden rounded-md" />
+        <div ref={terminalRef} className="h-full w-full overflow-hidden" />
       </div>
     );
   }

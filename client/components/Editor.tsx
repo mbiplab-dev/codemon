@@ -2,6 +2,7 @@
 
 import Editor from "@monaco-editor/react";
 import { useState } from "react";
+import FileTabs from "./FileTabs";
 
 export default function CodeEditor() {
   function handleEditorMount(editor: any, monaco: any) {
@@ -51,25 +52,10 @@ export default function CodeEditor() {
 
   return (
     <div className="flex flex-col w-full h-full bg-[#0a0a0a] text-white border border-neutral-800 rounded-lg shadow-lg">
-      {/* Tabs for Open Files */}
-      <div className="flex items-center h-10 bg-neutral-900 border-b border-neutral-800 overflow-x-auto">
-        {openFiles.map((file) => (
-          <div
-            key={file.name}
-            className={`px-4 py-2 text-sm cursor-pointer border-r border-neutral-800 ${
-              activeFile.name === file.name
-                ? "bg-[#1a1a1a] text-orange-400"
-                : "text-gray-300 hover:bg-[#1a1a1a]"
-            }`}
-            onClick={() => setActiveFile(file)}
-          >
-            {file.name}
-          </div>
-        ))}
-      </div>
+      <FileTabs/>
 
       {/* Path / Breadcrumb */}
-      <div className="h-6 px-4 flex items-center text-gray-400 text-xs bg-[#111] border-b border-neutral-800">
+      <div className="min-h-6 px-4 flex items-center text-gray-400 text-xs bg-[#111] border-b border-neutral-800">
         {activeFile.path}
       </div>
 

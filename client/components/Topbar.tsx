@@ -49,13 +49,13 @@ const Topbar = () => {
   };
 
   return (
-    <div className="relative flex items-center w-full h-16 px-4 border border-neutral-800 rounded-lg bg-[#0a0a0a] shadow-lg text-white">
+    <div className="relative flex items-center w-full h-12 px-4 border border-neutral-800 rounded-lg bg-[#0a0a0a] shadow-lg text-white">
       {/* Left Section */}
-      <div className="flex items-center space-x-6">
+      <div className="flex items-center space-x-4">
         <Image src="/logo.png" alt="logo" width={120} height={14} />
 
         {/* Menu Buttons */}
-        <div className="flex items-center space-x-4 text-sm text-gray-300 relative">
+        <div className="flex items-center text-sm text-gray-300 relative">
           {Object.keys(menus).map((item) => (
             <div key={item} className="relative">
               <button
@@ -108,7 +108,9 @@ const Topbar = () => {
               onChange={(e) => setProjectName(e.target.value)}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
-              className="bg-neutral-800 text-white px-1 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+              spellCheck={false}
+              className="w-full bg-neutral-900 text-gray-200 placeholder-gray-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring focus:ring-orange-400"
+              required
             />
           ) : (
             <span
@@ -205,12 +207,13 @@ const Topbar = () => {
       </div>
 
       {/* Right Section */}
-      <div className="ml-auto flex items-center space-x-4 w-60">
+      <div className="ml-auto flex items-center space-x-4 w-100">
         <div className="relative w-full">
           <input
             type="text"
             placeholder="Search..."
-            className="w-full bg-neutral-900 text-gray-200 placeholder-gray-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            spellCheck={false}
+            className="w-full bg-neutral-900 text-gray-200 placeholder-gray-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring focus:ring-orange-400"
           />
           <Search className="absolute right-3 top-2.5 w-5 h-5 text-gray-500" />
         </div>
