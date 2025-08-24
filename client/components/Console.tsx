@@ -1,83 +1,79 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Terminal from "./Terminal";
 import { Plus, X } from "lucide-react";
 
 interface TerminalInstance {
-  id: number;
+  id: string;
+}
+
+interface ConsoleState {
+  terminals: TerminalInstance[];
+  activeIndex: number | null;
 }
 
 export default function Console() {
-  const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const idCounterRef = useRef(0);
+  const [state, setState] = useState<ConsoleState>({
+    terminals: [],
+    activeIndex: null,
+  });
 
   const addTerminal = () => {
-    setTerminals((prev) => {
-      const newTerminal = { id: idCounterRef.current++ };
-      const updated = [...prev, newTerminal];
-      setActiveIndex(updated.length - 1); // ✅ Always set to last terminal
-      return updated;
+    setState((prev) => {
+      const newTerminal = { id: crypto.randomUUID() };
+      const terminals = [...prev.terminals, newTerminal];
+      return { terminals, activeIndex: terminals.length - 1 };
     });
   };
 
   const removeTerminal = (index: number) => {
-    setTerminals((prev) => {
-      const updated = prev.filter((_, i) => i !== index);
-      if (updated.length === 0) {
-        setActiveIndex(null);
+    setState((prev) => {
+      const terminals = prev.terminals.filter((_, i) => i !== index);
+      let activeIndex = prev.activeIndex;
+
+      if (terminals.length === 0) {
+        activeIndex = null;
       } else if (activeIndex === index) {
-        setActiveIndex(updated.length - 1); // ✅ Switch to last available terminal
+        activeIndex = terminals.length - 1;
       } else if (activeIndex !== null && activeIndex > index) {
-        setActiveIndex((prevIndex) => (prevIndex ? prevIndex - 1 : null));
+        activeIndex -= 1;
       }
-      return updated;
+
+      return { terminals, activeIndex };
     });
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0a0a0a] border border-neutral-800 rounded-lg">
+    <div className="flex h-full w-full bg-[#0a0a0a] border border-neutral-800 rounded-lg overflow-hidden">
       {/* Terminal Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Tabs */}
-        <div className="flex items-center justify-between bg-[#111] border-b border-neutral-800 px-2 h-8 shrink-0">
-          <div className="flex space-x-2">
-            {terminals.map((t, i) => (
-              <div
-                key={t.id}
-                onClick={() => setActiveIndex(i)}
-                className={`flex items-center px-3 py-2 text-sm rounded-t-lg cursor-pointer ${
-                  activeIndex === i
-                    ? "bg-[#1a1a1a] text-orange-400 border-b-2 border-orange-400"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                <span>Terminal {t.id + 1}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeTerminal(i);
-                  }}
-                  className="ml-2 hover:text-red-400"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
+        {/* Top Bar */}
+        <div className="flex items-center justify-between bg-[#111] border-b border-neutral-800 px-3 h-8 shrink-0">
+          <span className="text-gray-400 text-sm">Console</span>
           <button
             onClick={addTerminal}
-            className="p-2 text-gray-400 hover:text-orange-400"
+            className="p-1 text-gray-400 hover:text-orange-400"
           >
             <Plus size={18} />
           </button>
         </div>
 
-        {/* Active Terminal (Scroll only here) */}
-        <div className="flex-1 overflow-hidden">
-          {activeIndex !== null && terminals[activeIndex] ? (
-            <Terminal />
-          ) : (
+        {/* Persistent Terminals */}
+        <div className="flex-1 overflow-hidden relative">
+          {state.terminals.map((t, i) => (
+            <div
+              key={t.id}
+              className={`absolute inset-0 transition-opacity ${
+                state.activeIndex === i
+                  ? "opacity-100"
+                  : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <Terminal />
+            </div>
+          ))}
+
+          {state.terminals.length === 0 && (
             <div className="flex items-center justify-center h-full text-gray-500">
               No terminal open. Click + to add one.
             </div>
@@ -86,22 +82,34 @@ export default function Console() {
       </div>
 
       {/* Right Panel */}
-      <div className="w-48 bg-[#111] border-l border-neutral-800 flex flex-col shrink-0">
+      <div className="w-56 bg-[#111] border-l border-neutral-800 flex flex-col shrink-0">
         <div className="p-2 h-8 text-xs text-gray-400 border-b border-neutral-800">
           Terminals
         </div>
         <div className="flex-1 overflow-y-auto">
-          {terminals.map((t, i) => (
+          {state.terminals.map((t, i) => (
             <div
               key={t.id}
-              onClick={() => setActiveIndex(i)}
-              className={`px-3 py-2 text-sm cursor-pointer ${
-                activeIndex === i
+              className={`group flex items-center justify-between px-3 py-2 text-sm cursor-pointer ${
+                state.activeIndex === i
                   ? "bg-[#1a1a1a] text-orange-400"
                   : "text-gray-400 hover:bg-[#1a1a1a]"
               }`}
             >
-              Terminal {t.id + 1}
+              <span
+                className="flex-1"
+                onClick={() =>
+                  setState((prev) => ({ ...prev, activeIndex: i }))
+                }
+              >
+                Terminal {i + 1}
+              </span>
+              <button
+                onClick={() => removeTerminal(i)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-300 hover:text-red-400"
+              >
+                <X size={14} />
+              </button>
             </div>
           ))}
         </div>

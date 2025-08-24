@@ -1,119 +1,86 @@
 "use client";
-import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useRef } from "react";
+import { io, Socket } from "socket.io-client";
 import "@xterm/xterm/css/xterm.css";
 
-interface TerminalProps {
-  onCommand?: (cmd: string) => void;
-}
+export default function Terminal() {
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-const Terminal = forwardRef<{ write: (data: string) => void }, TerminalProps>(
-  ({ onCommand }, ref) => {
-    const terminalRef = useRef<HTMLDivElement>(null);
-    const termRef = useRef<any>(null);
-    const fitAddonRef = useRef<any>(null);
+  useEffect(() => {
+    (async () => {
+      const { Terminal } = await import("@xterm/xterm");
+      const { FitAddon } = await import("@xterm/addon-fit");
 
-    useEffect(() => {
-      // ✅ Prevent double initialization in StrictMode
-      if (termRef.current) return;
+      const term = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        theme: {
+          background: "#0a0a0a",
+          foreground: "#ffffff",
+          cursor: "#fb923c",
+        },
+      });
 
-      (async () => {
-        const xtermModule = await import("@xterm/xterm");
-        const addonModule = await import("@xterm/addon-fit");
-        const Terminal = xtermModule.Terminal;
-        const FitAddon = addonModule.FitAddon;
+      const style = document.createElement("style");
+      style.innerHTML = `
+          .xterm-viewport::-webkit-scrollbar {
+            width: 13px;
+          }
+          .xterm-viewport::-webkit-scrollbar-thumb {
+            background-color: #fb923ccc;
+            border-radius: 6px;
+          }
+          .xterm-viewport::-webkit-scrollbar-track {
+            background: transparent;
+          }
+        `;
+      document.head.appendChild(style);
 
-        if (!terminalRef.current) return;
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(terminalRef.current!);
+      fitAddon.fit();
 
-        const term = new Terminal({
-          cursorBlink: true,
-          fontSize: 14,
-          theme: {
-            background: "#00000000",
-            foreground: "#ffffff",
-            cursor: "#fb923c",
-            cursorAccent: "#0a0a0a",
-          },
-          scrollback: 1000,
-        });
+      // Connect socket
+      socketRef.current = io("http://localhost:3001");
 
-        const fitAddon = new FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(terminalRef.current);
+      socketRef.current.on("connect", () => {
+        // tell server to actually start a shell (cmd/git bash/etc.)
+        socketRef.current?.emit("createTerminal", { shellType: "cmd" });
+      });
+
+      // Write shell output
+      socketRef.current.on("output", (data: string) => {
+        term.write(data);
+      });
+
+      // Send keystrokes to backend
+      term.onData((data) => {
+        socketRef.current?.emit("input", data);
+      });
+
+      // Resize handling
+      const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
-
-        termRef.current = term;
-        fitAddonRef.current = fitAddon;
-
-        // ✅ Banner text only once
-        const banner = ` ██████╗ ██████╗ ██████╗ ███████╗███╗   ███╗ ██████╗ ███╗   ██╗
-██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗ ████║██╔═══██╗████╗  ██║
-██║     ██║   ██║██║  ██║█████╗  ██╔████╔██║██║   ██║██╔██╗ ██║
-██║     ██║   ██║██║  ██║██╔══╝  ██║╚██╔╝██║██║   ██║██║╚██╗██║
-╚██████╗╚██████╔╝██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝██║ ╚████║
- ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝`;
-
-        const lines = banner.split("\n");
-        let index = 0;
-
-        const prompt = () => term.write("\r\n$ ");
-
-        const writeBannerLine = () => {
-          if (index < lines.length) {
-            term.writeln("\x1b[38;5;208m" + lines[index] + "\x1b[0m");
-            index++;
-            requestAnimationFrame(writeBannerLine);
-          } else {
-            term.writeln("");
-            prompt();
-          }
-        };
-
-        writeBannerLine();
-
-        // ✅ Handle input
-        let command = "";
-        term.onKey(({ key, domEvent }: any) => {
-          const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
-
-          if (domEvent.key === "Enter") {
-            if (onCommand) onCommand(command);
-            command = "";
-            prompt();
-          } else if (domEvent.key === "Backspace") {
-            if (command.length > 0) {
-              term.write("\b \b");
-              command = command.slice(0, -1);
-            }
-          } else if (printable) {
-            command += key;
-            term.write(key);
-          }
+        socketRef.current?.emit("resize", {
+          cols: term.cols,
+          rows: term.rows,
         });
+      });
+      resizeObserver.observe(terminalRef.current!);
 
-        // ✅ Auto resize
-        const resizeObserver = new ResizeObserver(() => fitAddon.fit());
-        resizeObserver.observe(terminalRef.current);
+      return () => {
+        resizeObserver.disconnect();
+        socketRef.current?.disconnect();
+        term.dispose();
+      };
+    })();
+  }, []);
 
-        // ✅ Cleanup
-        return () => {
-          resizeObserver.disconnect();
-          term.dispose();
-        };
-      })();
-    }, [onCommand]);
-
-    useImperativeHandle(ref, () => ({
-      write: (data: string) => {
-        termRef.current?.writeln(data);
-      },
-    }));
-
-    return (
-      <div className="h-full w-full overflow-hidden bg-[#0a0a0a]">
-        <div ref={terminalRef} className="h-full w-full overflow-y-auto" />
-      </div>
-    );
-  }
-);
-
-export default Terminal;
+  return (
+    <div className="h-full w-full bg-[#0a0a0a] border border-neutral-800 p-2">
+      <div ref={terminalRef} className="h-full w-full" />
+    </div>
+  );
+}

@@ -42,28 +42,6 @@ const ActiveUsers = ({ users = activeUsers, minHeight = 50 }) => {
     };
   }, []);
 
-  useEffect(() => {
-    // Inject scrollbar styles dynamically
-    const style = document.createElement("style");
-    style.innerHTML = `
-      .scrollable::-webkit-scrollbar {
-        width: 7px;
-      }
-      .scrollable::-webkit-scrollbar-thumb {
-        background-color: #fb923ccc;
-        border-radius: 3px;
-      }
-      .scrollable::-webkit-scrollbar-track {
-        background: transparent;
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
   const isStacked = panelHeight < 100;
   const getAvatarUrl = (id) => `https://avatar.iran.liara.run/public/${id}`;
 

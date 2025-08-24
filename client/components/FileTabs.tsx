@@ -51,9 +51,9 @@ const FileTabs = () => {
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
-                      className={`px-2 py-2 text-sm cursor-pointer border-r border-neutral-800 flex items-center${
+                      className={`group flex items-center pl-2 pr-1 py-2 text-sm cursor-pointer border-x border-neutral-800 ${
                         activeTab === tab.id
-                          ? "bg-neutral-700 text-orange-400"
+                          ? "bg-neutral-800 text-orange-400 border-b-2 border-b-orange-500"
                           : "text-gray-300 hover:bg-[#1a1a1a]"
                       } ${
                         snapshot.isDragging ? "shadow-lg bg-neutral-800" : ""
@@ -66,7 +66,7 @@ const FileTabs = () => {
                           e.stopPropagation();
                           handleClose(tab.id);
                         }}
-                        className="pl-2 text-gray-300 hover:text-red-400"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pl-1 text-gray-300 hover:text-red-400"
                       >
                         <X className="w-4 h-4" />
                       </button>

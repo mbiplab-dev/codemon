@@ -51,7 +51,7 @@ export default function CodeEditor() {
   const [activeFile, setActiveFile] = useState(openFiles[0]);
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#0a0a0a] text-white border border-neutral-800 rounded-lg shadow-lg">
+    <div className="flex flex-col w-full h-full bg-[#0a0a0a] text-white border border-neutral-800 rounded-lg shadow-lg overflow-hidden">
       <FileTabs/>
 
       {/* Path / Breadcrumb */}

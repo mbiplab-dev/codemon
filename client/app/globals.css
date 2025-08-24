@@ -120,3 +120,13 @@
     @apply bg-background text-foreground;
   }
 }
+.scrollable::-webkit-scrollbar {
+  width: 7px;
+}
+.scrollable::-webkit-scrollbar-thumb {
+  background-color: #fb923ccc;
+  border-radius: 3px;
+}
+.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}

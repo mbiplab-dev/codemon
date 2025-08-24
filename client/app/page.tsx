@@ -12,7 +12,7 @@ import ActiveUsers from "@/components/ActiveUsers";
 
 export default function Page() {
   return (
-    <div className="h-screen w-screen flex flex-col bg-black text-neutral-200 p-2">
+    <div className="h-screen w-screen max-h-screen max-w-screen flex flex-col bg-black text-neutral-200 p-2 overflow-hidden">
       {/* Topbar */}
       <div className="h-12 mb-1 border-neutral-800 flex items-center bg-neutral-950">
         <Topbar />
@@ -28,7 +28,7 @@ export default function Page() {
 
           {/* Explorer + Active Users Panel */}
           <Panel
-            defaultSize={13}
+            defaultSize={15}
             minSize={0}
             maxSize={80}
             className="bg-neutral-950 border-neutral-800"
@@ -51,10 +51,10 @@ export default function Page() {
           {/* Editor + Console */}
           <Panel
             defaultSize={60}
-            minSize={30}
+            minSize={15}
             className="bg-neutral-950 border-neutral-800"
           >
-            <PanelGroup direction="vertical">
+            <PanelGroup direction="vertical" className="h-full">
               <Panel defaultSize={70} minSize={20} className="bg-neutral-950">
                 <CodeEditor />
               </Panel>
@@ -77,7 +77,7 @@ export default function Page() {
             defaultSize={25}
             minSize={0}
             maxSize={80}
-            className="bg-neutral-950"
+            className="bg-neutral-950 h-full"
           >
             <RightPanel />
           </Panel>
