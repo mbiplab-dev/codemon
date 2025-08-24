@@ -2,7 +2,7 @@ import { useState } from "react";
 import Preview from "./Preview";
 import Chat from "./Chat";
 
-const RightPanel = ({ srcDoc }) => {
+const RightPanel = () => {
   const [viewMode, setViewMode] = useState("desktop");
   const [activeTab, setActiveTab] = useState("preview");
 
