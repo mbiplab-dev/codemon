@@ -16,7 +16,7 @@ app.use(express.json());
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-const ROOT_DIR = path.resolve("./");
+const ROOT_DIR = path.resolve("../");
 
 // ---------------- File Tree Builder ----------------
 function buildTree(dirPath) {
@@ -63,6 +63,46 @@ app.post("/save-file", (req, res) => {
     res.status(500).json({ message: "Failed to save file", error: err.message });
   }
 });
+
+
+// ---------------- Create Node (File/Folder) ----------------
+app.post("/create-node", (req, res) => {
+  const { parentPath, name, type } = req.body;
+
+  if (!parentPath || !name || !type) {
+    return res.status(400).json({ message: "parentPath, name, and type are required" });
+  }
+
+  const fullPath = path.join(parentPath, name);
+  console.log(fullPath)
+
+  try {
+    if (type === "folder") {
+      if (!fs.existsSync(fullPath)) {
+        fs.mkdirSync(fullPath);
+      } else {
+        return res.status(400).json({ message: "Folder already exists" });
+      }
+    } else if (type === "file") {
+      if (!fs.existsSync(fullPath)) {
+        fs.writeFileSync(fullPath, "", "utf-8");
+      } else {
+        return res.status(400).json({ message: "File already exists" });
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid type" });
+    }
+
+    // Respond with the real path
+    res.json({ path: fullPath });
+    
+    // Emit fs-update to all clients so explorer refreshes
+    io.emit("fs-update", buildTree(ROOT_DIR));
+  } catch (err) {
+    res.status(500).json({ message: "Failed to create node", error: err.message });
+  }
+});
+
 
 // ---------------- Proxy Route for Iframe Preview ----------------
 app.get("/proxy", async (req, res) => {

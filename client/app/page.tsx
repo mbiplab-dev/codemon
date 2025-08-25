@@ -90,7 +90,7 @@ export default function Page() {
           </div>
 
           {/* Left Panel */}
-          <Panel minSize={0} maxSize={80} defaultSize={horizontalLayout[0]}>
+          <Panel minSize={0} maxSize={80} defaultSize={horizontalLayout[0]} >
             {activeTab === "explorer" && <Explorer onFileClick={handleFileClick} />}
             {activeTab === "users" && <ActiveUsers />}
             {activeTab === "search" && <SearchPanel />}
@@ -100,7 +100,7 @@ export default function Page() {
           <CustomResizeHandle direction="vertical" />
 
           {/* Editor + Console */}
-          <Panel minSize={0} defaultSize={horizontalLayout[1]}>
+          <Panel minSize={20} defaultSize={horizontalLayout[1]}>
             <PanelGroup direction="vertical" className="h-full" onLayout={handleVerticalLayoutChange}>
               <Panel minSize={0} defaultSize={verticalLayout[0]}>
                 <CodeEditor

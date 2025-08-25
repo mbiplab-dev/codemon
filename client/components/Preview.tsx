@@ -9,8 +9,8 @@ import {
 import { useState, useRef } from "react";
 
 const Preview = ({ viewMode, setViewMode }) => {
-  const [url, setUrl] = useState("https://www.biplabmohanty.com"); // Default page
-  const [history, setHistory] = useState(["https://www.biplabmohanty.com"]);
+  const [url, setUrl] = useState("http://localhost:3000"); // Default page
+  const [history, setHistory] = useState(["http://localhost:3000"]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const iframeRef = useRef(null);
 
