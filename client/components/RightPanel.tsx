@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Preview from "./Preview";
-import Chat from "./Chat";
+import Chat from "./AiChatPanel";
 
-const RightPanel = () => {
-  const [viewMode, setViewMode] = useState("desktop");
+const RightPanel = ({ srcDoc }) => {
+  // Load from localStorage or default to "desktop"
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem("viewMode") || "desktop";
+  });
   const [activeTab, setActiveTab] = useState("preview");
+
+  // Save to localStorage whenever viewMode changes
+  useEffect(() => {
+    localStorage.setItem("viewMode", viewMode);
+  }, [viewMode]);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#1a1a1a] border border-neutral-800 rounded-lg overflow-hidden">
@@ -34,11 +42,7 @@ const RightPanel = () => {
 
       {/* Tab Content */}
       {activeTab === "preview" ? (
-        <Preview
-          srcDoc={srcDoc}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-        />
+        <Preview viewMode={viewMode} setViewMode={setViewMode} />
       ) : (
         <Chat />
       )}

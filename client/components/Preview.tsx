@@ -6,30 +6,74 @@ import {
   RefreshCw,
   Smartphone,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
-const Preview = ({ srcDoc, viewMode, setViewMode }) => {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [url] = useState("https://codemon.local/preview");
+const Preview = ({ viewMode, setViewMode }) => {
+  const [url, setUrl] = useState("https://www.biplabmohanty.com"); // Default page
+  const [history, setHistory] = useState(["https://www.biplabmohanty.com"]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const iframeRef = useRef(null);
+
+  const proxyBase = "http://localhost:3001/proxy?url=";
+
+  const goBack = () => {
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      setUrl(history[newIndex]);
+    }
+  };
+
+  const goForward = () => {
+    if (currentIndex < history.length - 1) {
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      setUrl(history[newIndex]);
+    }
+  };
+
+  const refreshPage = () => {
+    if (iframeRef.current) {
+      iframeRef.current.src = proxyBase + encodeURIComponent(url);
+    }
+  };
+
+  const handleEnterUrl = (e) => {
+    if (e.key === "Enter") {
+      let newUrl = e.target.value.trim();
+      if (!newUrl.startsWith("http")) {
+        newUrl = `https://${newUrl}`;
+      }
+      const newHistory = history.slice(0, currentIndex + 1);
+      newHistory.push(newUrl);
+      setHistory(newHistory);
+      setCurrentIndex(newHistory.length - 1);
+      setUrl(newUrl);
+    }
+  };
 
   return (
     <div className="flex flex-col flex-1">
       {/* Navigation Bar */}
       <div className="flex items-center px-2 py-2 bg-[#111] border-b border-neutral-800 space-x-2">
         <button
-          className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
+          onClick={goBack}
+          disabled={currentIndex === 0}
+          className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded disabled:opacity-50"
           title="Back"
         >
           <ChevronLeft className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
         <button
-          className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
+          onClick={goForward}
+          disabled={currentIndex >= history.length - 1}
+          className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded disabled:opacity-50"
           title="Forward"
         >
           <ChevronRight className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
         <button
-          onClick={() => setRefreshKey(refreshKey + 1)}
+          onClick={refreshPage}
           className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
           title="Refresh Preview"
         >
@@ -45,11 +89,7 @@ const Preview = ({ srcDoc, viewMode, setViewMode }) => {
           <Smartphone className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
         <button
-          onClick={() => {
-            const newWindow = window.open();
-            newWindow.document.write(srcDoc);
-            newWindow.document.close();
-          }}
+          onClick={() => window.open(url, "_blank")}
           className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
           title="Open in New Tab"
         >
@@ -60,25 +100,26 @@ const Preview = ({ srcDoc, viewMode, setViewMode }) => {
           <Lock className="w-4 h-4 mr-2 text-green-500" />
           <input
             type="text"
-            value={url}
+            defaultValue={url}
+            onKeyDown={handleEnterUrl}
             className="bg-transparent w-full outline-none"
           />
         </div>
       </div>
 
-      {/* Preview Iframe */}
+      {/* Live Website Preview via Proxy */}
       <iframe
-        key={refreshKey}
-        srcDoc={srcDoc}
-        title="Live Preview"
-        sandbox="allow-scripts"
+        ref={iframeRef}
+        key={url}
+        src={proxyBase + encodeURIComponent(url)}
+        title="Live Browser Preview"
         className={`bg-white rounded-b shadow flex-1 ${
           viewMode === "mobile"
-            ? "w-[375px] h-[667px] mx-auto my-4"
+            ? "w-[425px] h-[800px] mx-auto my-4"
             : "w-full h-full"
         }`}
       />
-    </div>
+      </div>
   );
 };
 

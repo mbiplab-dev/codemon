@@ -3,13 +3,13 @@
 import Editor from "@monaco-editor/react";
 import FileTabs from "./FileTabs";
 import { FileType } from "@/app/page";
-import { useEffect } from "react";
+import toast from "react-hot-toast";
 
 type CodeEditorProps = {
   openFiles: FileType[];
   activeFile: FileType | null;
   setActiveFile: (file: FileType) => void;
-  setOpenFiles: (files: FileType[]) => void;
+  setOpenFiles: React.Dispatch<React.SetStateAction<FileType[]>>; // ✅ Correct type
 };
 
 export default function CodeEditor({
@@ -19,6 +19,7 @@ export default function CodeEditor({
   setOpenFiles,
 }: CodeEditorProps) {
   function handleEditorMount(editor: any, monaco: any) {
+    // ✅ Define custom theme
     monaco.editor.defineTheme("custom-dark", {
       base: "vs-dark",
       inherit: true,
@@ -54,14 +55,39 @@ export default function CodeEditor({
     });
 
     monaco.editor.setTheme("custom-dark");
-  }
 
-  // ✅ Log file content when switching tabs
-  useEffect(() => {
-    if (activeFile) {
-      console.log("Active file content:", activeFile.content);
-    }
-  }, [activeFile]);
+    // ✅ Handle Ctrl+S (Save File)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+      if (!activeFile) return;
+
+      try {
+        const content = editor.getValue();
+
+        const response = await fetch("http://localhost:3001/save-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: activeFile.path, content }),
+        });
+
+        if (response.ok) {
+          // ✅ Update state to keep UI in sync
+          setActiveFile({ ...activeFile, content });
+          setOpenFiles((prevFiles) =>
+            prevFiles.map((file) =>
+              file.path === activeFile.path ? { ...file, content } : file
+            )
+          );
+
+          toast.success("File saved successfully!");
+        } else {
+          const err = await response.json();
+          toast.error(`Error saving file: ${err.message}`);
+        }
+      } catch (err: any) {
+        toast.error(`Error saving file: ${err.message}`);
+      }
+    });
+  }
 
   return (
     <div className="flex flex-col w-full h-full bg-[#0a0a0a] text-white border border-neutral-800 rounded-lg shadow-lg overflow-hidden">
@@ -73,24 +99,20 @@ export default function CodeEditor({
         setOpenFiles={setOpenFiles}
       />
 
-      {/* Path / Breadcrumb */}
+      {/* File Path Bar */}
       <div className="min-h-6 px-4 flex items-center text-gray-400 text-xs bg-[#111] border-b border-neutral-800">
         {activeFile ? activeFile.path : "No file open"}
       </div>
 
-      {/* Editor Area */}
+      {/* Monaco Editor */}
       <div className="flex-1 bg-[#0f0f0f] text-gray-200 text-sm font-mono">
         <Editor
-          key={activeFile?.path}
+          key={activeFile?.path} // Forces re-mount when file changes
           height="100%"
           defaultLanguage="javascript"
           value={activeFile ? activeFile.content : ""}
           theme="custom-dark"
           onMount={handleEditorMount}
-          onChange={(value) => {
-            // log edits while typing
-            console.log("Editing file content:", value);
-          }}
           options={{
             minimap: { enabled: true },
             fontSize: 14,

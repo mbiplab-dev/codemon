@@ -16,12 +16,21 @@ export default function Explorer({
   onFileClick: (file: { name: string; path: string }) => void;
 }) {
   const [tree, setTree] = useState<FileNode | null>(null);
+  const [openedFolders, setOpenedFolders] = useState<Set<string>>(new Set());
 
+  // Load tree and opened folders from localStorage
   useEffect(() => {
+    const savedTree = localStorage.getItem("explorerTree");
+    if (savedTree) setTree(JSON.parse(savedTree));
+
+    const savedOpened = localStorage.getItem("openedFolders");
+    if (savedOpened) setOpenedFolders(new Set(JSON.parse(savedOpened)));
+
     const socket = io("http://localhost:3001");
 
     socket.on("fs-update", (data: FileNode) => {
       setTree(data);
+      localStorage.setItem("explorerTree", JSON.stringify(data));
     });
 
     return () => {
@@ -29,22 +38,34 @@ export default function Explorer({
     };
   }, []);
 
+  // Toggle folder open state
+  const toggleFolder = (path: string) => {
+    const newOpened = new Set(openedFolders);
+    if (openedFolders.has(path)) {
+      newOpened.delete(path);
+    } else {
+      newOpened.add(path);
+    }
+    setOpenedFolders(newOpened);
+    localStorage.setItem("openedFolders", JSON.stringify(Array.from(newOpened)));
+  };
+
   const FileItem = ({ node }: { node: FileNode }) => {
-    const [open, setOpen] = useState(false);
+    const isOpen = openedFolders.has(node.path);
 
     if (node.type === "folder") {
       return (
         <div>
           <div
             className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-orange-500/20 rounded-md"
-            onClick={() => setOpen(!open)}
+            onClick={() => toggleFolder(node.path)}
           >
-            {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             <Folder className="text-orange-400" size={16} />
             <span className="ml-1 text-sm">{node.name}</span>
           </div>
 
-          {open && node.children && (
+          {isOpen && node.children && (
             <div className="ml-5 border-l border-gray-700 pl-2">
               {node.children.map((child) => (
                 <FileItem key={child.path} node={child} />

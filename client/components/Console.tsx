@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Terminal from "./Terminal";
 import { Plus, X } from "lucide-react";
 
@@ -17,6 +17,19 @@ export default function Console() {
     terminals: [],
     activeIndex: null,
   });
+
+  // ✅ Restore terminals from localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem("consoleState");
+    if (savedState) {
+      setState(JSON.parse(savedState));
+    }
+  }, []);
+
+  // ✅ Persist terminals whenever state changes
+  useEffect(() => {
+    localStorage.setItem("consoleState", JSON.stringify(state));
+  }, [state]);
 
   const addTerminal = () => {
     setState((prev) => {
@@ -69,7 +82,7 @@ export default function Console() {
                   : "opacity-0 pointer-events-none"
               }`}
             >
-              <Terminal />
+              <Terminal key={t.id} />
             </div>
           ))}
 

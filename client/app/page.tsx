@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Panel, PanelGroup } from "react-resizable-panels";
 
 import Topbar from "@/components/Topbar";
@@ -21,7 +21,29 @@ export default function Page() {
   const [openFiles, setOpenFiles] = useState<FileType[]>([]);
   const [activeFile, setActiveFile] = useState<FileType | null>(null);
 
-  // ✅ Fetch file content from backend when clicking a file
+  // ✅ Restore open files and active file on mount
+  useEffect(() => {
+    const savedFiles = localStorage.getItem("openFiles");
+    const savedActive = localStorage.getItem("activeFile");
+
+    if (savedFiles) setOpenFiles(JSON.parse(savedFiles));
+    if (savedActive) setActiveFile(JSON.parse(savedActive));
+  }, []);
+
+  // ✅ Persist openFiles and activeFile whenever they change
+  useEffect(() => {
+    localStorage.setItem("openFiles", JSON.stringify(openFiles));
+  }, [openFiles]);
+
+  useEffect(() => {
+    if (activeFile) {
+      localStorage.setItem("activeFile", JSON.stringify(activeFile));
+    } else {
+      localStorage.removeItem("activeFile");
+    }
+  }, [activeFile]);
+
+  // Fetch file content from backend when clicking a file
   const handleFileClick = async (file: FileType) => {
     try {
       const res = await fetch(`http://localhost:3001/file?path=${encodeURIComponent(file.path)}`);
@@ -29,9 +51,10 @@ export default function Page() {
 
       const fileWithContent: FileType = {
         ...file,
-        content: data.content, // assume backend returns { content: "..." }
+        content: data.content,
       };
 
+      // Add file to openFiles if not already open
       if (!openFiles.find(f => f.path === file.path)) {
         setOpenFiles(prev => [...prev, fileWithContent]);
       }
@@ -58,12 +81,7 @@ export default function Page() {
           </div>
 
           {/* Explorer + Active Users Panel */}
-          <Panel
-            defaultSize={15}
-            minSize={0}
-            maxSize={80}
-            className="bg-neutral-950 border-neutral-800"
-          >
+          <Panel defaultSize={15} minSize={0} maxSize={80} className="bg-neutral-950 border-neutral-800">
             <PanelGroup direction="vertical" className="h-full">
               <Panel defaultSize={90} minSize={50} className="bg-neutral-950">
                 <Explorer onFileClick={handleFileClick} />
@@ -80,13 +98,9 @@ export default function Page() {
           <CustomResizeHandle direction="vertical" />
 
           {/* Editor + Console */}
-          <Panel
-            defaultSize={60}
-            minSize={15}
-            className="bg-neutral-950 border-neutral-800"
-          >
+          <Panel defaultSize={60} minSize={0} className="bg-neutral-950 border-neutral-800">
             <PanelGroup direction="vertical" className="h-full">
-              <Panel defaultSize={70} minSize={20} className="bg-neutral-950">
+              <Panel defaultSize={70} minSize={0} className="bg-neutral-950">
                 <CodeEditor
                   openFiles={openFiles}
                   activeFile={activeFile}
@@ -97,12 +111,7 @@ export default function Page() {
 
               <CustomResizeHandle direction="horizontal" />
 
-              <Panel
-                defaultSize={30}
-                minSize={15}
-                maxSize={80}
-                className="bg-neutral-950 border-neutral-800"
-              >
+              <Panel defaultSize={30} minSize={0} className="bg-neutral-950 border-neutral-800">
                 <Console />
               </Panel>
             </PanelGroup>
@@ -111,12 +120,7 @@ export default function Page() {
           <CustomResizeHandle direction="vertical" />
 
           {/* Preview */}
-          <Panel
-            defaultSize={25}
-            minSize={0}
-            maxSize={80}
-            className="bg-neutral-950 h-full"
-          >
+          <Panel defaultSize={25} minSize={0} className="bg-neutral-950 h-full">
             <RightPanel />
           </Panel>
         </PanelGroup>
