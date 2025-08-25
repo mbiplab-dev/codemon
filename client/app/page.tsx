@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Panel, PanelGroup } from "react-resizable-panels";
 
 import Topbar from "@/components/Topbar";
@@ -10,6 +10,8 @@ import Console from "@/components/Console";
 import CustomResizeHandle from "@/components/CustomResizeHandle";
 import RightPanel from "@/components/RightPanel";
 import ActiveUsers from "@/components/ActiveUsers";
+import SearchPanel from "@/components/SearchPanel";
+import ChatPanel from "@/components/ChatPanel";
 
 export type FileType = {
   name: string;
@@ -18,51 +20,58 @@ export type FileType = {
 };
 
 export default function Page() {
-  const [openFiles, setOpenFiles] = useState<FileType[]>([]);
-  const [activeFile, setActiveFile] = useState<FileType | null>(null);
+  // Persist activeTab
+  const [activeTab, setActiveTab] = useState<"explorer" | "users" | "search" | "chat">(
+    () => (localStorage.getItem("activeTab") as "explorer" | "users" | "search" | "chat") || "explorer"
+  );
 
-  // ✅ Restore open files and active file on mount
-  useEffect(() => {
+  const [openFiles, setOpenFiles] = useState<FileType[]>(() => {
     const savedFiles = localStorage.getItem("openFiles");
+    return savedFiles ? JSON.parse(savedFiles) : [];
+  });
+
+  const [activeFile, setActiveFile] = useState<FileType | null>(() => {
     const savedActive = localStorage.getItem("activeFile");
+    return savedActive ? JSON.parse(savedActive) : null;
+  });
 
-    if (savedFiles) setOpenFiles(JSON.parse(savedFiles));
-    if (savedActive) setActiveFile(JSON.parse(savedActive));
-  }, []);
+  useEffect(() => {
+    localStorage.setItem("activeTab", activeTab);
+  }, [activeTab]);
 
-  // ✅ Persist openFiles and activeFile whenever they change
   useEffect(() => {
     localStorage.setItem("openFiles", JSON.stringify(openFiles));
   }, [openFiles]);
 
   useEffect(() => {
-    if (activeFile) {
-      localStorage.setItem("activeFile", JSON.stringify(activeFile));
-    } else {
-      localStorage.removeItem("activeFile");
-    }
+    if (activeFile) localStorage.setItem("activeFile", JSON.stringify(activeFile));
+    else localStorage.removeItem("activeFile");
   }, [activeFile]);
 
-  // Fetch file content from backend when clicking a file
   const handleFileClick = async (file: FileType) => {
     try {
       const res = await fetch(`http://localhost:3001/file?path=${encodeURIComponent(file.path)}`);
       const data = await res.json();
+      const fileWithContent: FileType = { ...file, content: data.content };
 
-      const fileWithContent: FileType = {
-        ...file,
-        content: data.content,
-      };
-
-      // Add file to openFiles if not already open
-      if (!openFiles.find(f => f.path === file.path)) {
-        setOpenFiles(prev => [...prev, fileWithContent]);
-      }
+      if (!openFiles.find((f) => f.path === file.path)) setOpenFiles((prev) => [...prev, fileWithContent]);
 
       setActiveFile(fileWithContent);
     } catch (err) {
       console.error("Failed to fetch file content:", err);
     }
+  };
+
+  // Get stored sizes from localStorage or fallback
+  const horizontalLayout = JSON.parse(localStorage.getItem("horizontalLayout") || "[20,55,25]");
+  const verticalLayout = JSON.parse(localStorage.getItem("verticalLayout") || "[70,30]");
+
+  const handleHorizontalLayoutChange = (sizes: number[]) => {
+    localStorage.setItem("horizontalLayout", JSON.stringify(sizes));
+  };
+
+  const handleVerticalLayoutChange = (sizes: number[]) => {
+    localStorage.setItem("verticalLayout", JSON.stringify(sizes));
   };
 
   return (
@@ -74,33 +83,26 @@ export default function Page() {
 
       {/* Main layout */}
       <div className="max-w-screen h-full">
-        <PanelGroup direction="horizontal" className="flex-1">
+        <PanelGroup direction="horizontal" onLayout={handleHorizontalLayoutChange} className="flex-1">
           {/* Sidebar */}
           <div className="w-[50px] mr-1 border-neutral-800 bg-neutral-950">
-            <Sidebar />
+            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
           </div>
 
-          {/* Explorer + Active Users Panel */}
-          <Panel defaultSize={15} minSize={0} maxSize={80} className="bg-neutral-950 border-neutral-800">
-            <PanelGroup direction="vertical" className="h-full">
-              <Panel defaultSize={90} minSize={50} className="bg-neutral-950">
-                <Explorer onFileClick={handleFileClick} />
-              </Panel>
-
-              <CustomResizeHandle direction="horizontal" />
-
-              <Panel defaultSize={10} minSize={10} maxSize={50}>
-                <ActiveUsers />
-              </Panel>
-            </PanelGroup>
+          {/* Left Panel */}
+          <Panel minSize={0} maxSize={80} defaultSize={horizontalLayout[0]}>
+            {activeTab === "explorer" && <Explorer onFileClick={handleFileClick} />}
+            {activeTab === "users" && <ActiveUsers />}
+            {activeTab === "search" && <SearchPanel />}
+            {activeTab === "chat" && <ChatPanel />}
           </Panel>
 
           <CustomResizeHandle direction="vertical" />
 
           {/* Editor + Console */}
-          <Panel defaultSize={60} minSize={0} className="bg-neutral-950 border-neutral-800">
-            <PanelGroup direction="vertical" className="h-full">
-              <Panel defaultSize={70} minSize={0} className="bg-neutral-950">
+          <Panel minSize={0} defaultSize={horizontalLayout[1]}>
+            <PanelGroup direction="vertical" className="h-full" onLayout={handleVerticalLayoutChange}>
+              <Panel minSize={0} defaultSize={verticalLayout[0]}>
                 <CodeEditor
                   openFiles={openFiles}
                   activeFile={activeFile}
@@ -111,7 +113,7 @@ export default function Page() {
 
               <CustomResizeHandle direction="horizontal" />
 
-              <Panel defaultSize={30} minSize={0} className="bg-neutral-950 border-neutral-800">
+              <Panel minSize={0} defaultSize={verticalLayout[1]}>
                 <Console />
               </Panel>
             </PanelGroup>
@@ -120,7 +122,7 @@ export default function Page() {
           <CustomResizeHandle direction="vertical" />
 
           {/* Preview */}
-          <Panel defaultSize={25} minSize={0} className="bg-neutral-950 h-full">
+          <Panel minSize={0} defaultSize={horizontalLayout[2]}>
             <RightPanel />
           </Panel>
         </PanelGroup>
