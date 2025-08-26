@@ -1,8 +1,7 @@
 "use client";
 
 import { PanelResizeHandle } from "react-resizable-panels";
-import { cn } from "@/lib/utils"; // shadcn helper
-import { GripHorizontal, GripVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function CustomResizeHandle({
   direction,

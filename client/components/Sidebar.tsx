@@ -7,11 +7,17 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(() => {
-    // ✅ Restore dropdown from localStorage
-    return localStorage.getItem("activeDropdown") || null;
-  });
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
+  // Load saved dropdown state on client
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedDropdown = localStorage.getItem("activeDropdown");
+      if (savedDropdown) setActiveDropdown(savedDropdown);
+    }
+  }, []);
+
+  // Persist dropdown state
   useEffect(() => {
     if (activeDropdown) {
       localStorage.setItem("activeDropdown", activeDropdown);

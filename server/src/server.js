@@ -12,15 +12,26 @@ import fetch from "node-fetch";
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+app.use(cors({
+  origin: "*",
+}));
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-const ROOT_DIR = path.resolve("../");
+const ROOT_DIR = path.resolve("../../");
 
 // ---------------- File Tree Builder ----------------
 function buildTree(dirPath) {
-  const stats = fs.statSync(dirPath);
+  if (!fs.existsSync(dirPath)) return null; // Skip if missing
+
+  let stats;
+  try {
+    stats = fs.statSync(dirPath);
+  } catch (err) {
+    if (err.code === 'ENOENT') return null; // File deleted after read
+    throw err; // Re-throw other errors
+  }
+
   const info = {
     name: path.basename(dirPath),
     path: dirPath,
@@ -28,13 +39,25 @@ function buildTree(dirPath) {
   };
 
   if (stats.isDirectory()) {
-    info.children = fs
-      .readdirSync(dirPath)
-      .map((child) => buildTree(path.join(dirPath, child)));
+    // Ignore heavy or unwanted directories
+    const ignoredDirs = ['.next', 'node_modules', '.git'];
+    
+    if (ignoredDirs.includes(info.name)) return null;
+
+    try {
+      const children = fs
+        .readdirSync(dirPath)
+        .map((child) => buildTree(path.join(dirPath, child)))
+        .filter(Boolean); // Remove nulls
+      info.children = children;
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err; // Ignore missing folder
+    }
   }
 
   return info;
 }
+
 
 // ---------------- File Routes ----------------
 app.get("/file", (req, res) => {
@@ -63,46 +86,6 @@ app.post("/save-file", (req, res) => {
     res.status(500).json({ message: "Failed to save file", error: err.message });
   }
 });
-
-
-// ---------------- Create Node (File/Folder) ----------------
-app.post("/create-node", (req, res) => {
-  const { parentPath, name, type } = req.body;
-
-  if (!parentPath || !name || !type) {
-    return res.status(400).json({ message: "parentPath, name, and type are required" });
-  }
-
-  const fullPath = path.join(parentPath, name);
-  console.log(fullPath)
-
-  try {
-    if (type === "folder") {
-      if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath);
-      } else {
-        return res.status(400).json({ message: "Folder already exists" });
-      }
-    } else if (type === "file") {
-      if (!fs.existsSync(fullPath)) {
-        fs.writeFileSync(fullPath, "", "utf-8");
-      } else {
-        return res.status(400).json({ message: "File already exists" });
-      }
-    } else {
-      return res.status(400).json({ message: "Invalid type" });
-    }
-
-    // Respond with the real path
-    res.json({ path: fullPath });
-    
-    // Emit fs-update to all clients so explorer refreshes
-    io.emit("fs-update", buildTree(ROOT_DIR));
-  } catch (err) {
-    res.status(500).json({ message: "Failed to create node", error: err.message });
-  }
-});
-
 
 // ---------------- Proxy Route for Iframe Preview ----------------
 app.get("/proxy", async (req, res) => {

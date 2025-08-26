@@ -3,16 +3,35 @@ import Preview from "./Preview";
 import Chat from "./AiChatPanel";
 
 const RightPanel = ({ srcDoc }) => {
-  // Load from localStorage or default to "desktop"
+  // ✅ Initialize viewMode from localStorage (or default to "desktop")
   const [viewMode, setViewMode] = useState(() => {
-    return localStorage.getItem("viewMode") || "desktop";
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("viewMode") || "desktop";
+    }
+    return "desktop";
   });
-  const [activeTab, setActiveTab] = useState("preview");
 
-  // Save to localStorage whenever viewMode changes
+  // ✅ Initialize activeTab from localStorage (or default to "preview")
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("activeTab") || "preview";
+    }
+    return "preview";
+  });
+
+  // ✅ Persist viewMode when it changes
   useEffect(() => {
-    localStorage.setItem("viewMode", viewMode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("viewMode", viewMode);
+    }
   }, [viewMode]);
+
+  // ✅ Persist activeTab when it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("activeTab", activeTab);
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#1a1a1a] border border-neutral-800 rounded-lg overflow-hidden">

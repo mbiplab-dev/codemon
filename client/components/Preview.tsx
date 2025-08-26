@@ -6,15 +6,38 @@ import {
   RefreshCw,
   Smartphone,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const Preview = ({ viewMode, setViewMode }) => {
-  const [url, setUrl] = useState("http://localhost:3000"); // Default page
-  const [history, setHistory] = useState(["http://localhost:3000"]);
+  const defaultUrl = "http://amazon.in";
+  const [url, setUrl] = useState(defaultUrl);
+  const [history, setHistory] = useState([defaultUrl]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const iframeRef = useRef(null);
 
   const proxyBase = "http://localhost:3001/proxy?url=";
+
+  // ✅ Load saved URL & history from localStorage (client-side only)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedUrl = localStorage.getItem("previewUrl");
+      const savedHistory = localStorage.getItem("previewHistory");
+      const savedIndex = localStorage.getItem("previewIndex");
+
+      if (savedUrl) setUrl(savedUrl);
+      if (savedHistory) setHistory(JSON.parse(savedHistory));
+      if (savedIndex) setCurrentIndex(Number(savedIndex));
+    }
+  }, []);
+
+  // ✅ Persist URL & history when they change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("previewUrl", url);
+      localStorage.setItem("previewHistory", JSON.stringify(history));
+      localStorage.setItem("previewIndex", currentIndex.toString());
+    }
+  }, [url, history, currentIndex]);
 
   const goBack = () => {
     if (currentIndex > 0) {
@@ -119,7 +142,7 @@ const Preview = ({ viewMode, setViewMode }) => {
             : "w-full h-full"
         }`}
       />
-      </div>
+    </div>
   );
 };
 

@@ -20,33 +20,51 @@ export type FileType = {
 };
 
 export default function Page() {
-  // Persist activeTab
-  const [activeTab, setActiveTab] = useState<"explorer" | "users" | "search" | "chat">(
-    () => (localStorage.getItem("activeTab") as "explorer" | "users" | "search" | "chat") || "explorer"
-  );
+  // ✅ Initialize with defaults (SSR safe)
+  const [activeTab, setActiveTab] = useState<"explorer" | "users" | "search" | "chat">("explorer");
+  const [openFiles, setOpenFiles] = useState<FileType[]>([]);
+  const [activeFile, setActiveFile] = useState<FileType | null>(null);
+  const [horizontalLayout, setHorizontalLayout] = useState<number[]>([20, 55, 25]);
+  const [verticalLayout, setVerticalLayout] = useState<number[]>([70, 30]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const [openFiles, setOpenFiles] = useState<FileType[]>(() => {
-    const savedFiles = localStorage.getItem("openFiles");
-    return savedFiles ? JSON.parse(savedFiles) : [];
-  });
+  // ✅ Load values from localStorage after mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTab = localStorage.getItem("activeTab");
+      if (savedTab) setActiveTab(savedTab as any);
 
-  const [activeFile, setActiveFile] = useState<FileType | null>(() => {
-    const savedActive = localStorage.getItem("activeFile");
-    return savedActive ? JSON.parse(savedActive) : null;
-  });
+      const savedFiles = localStorage.getItem("openFiles");
+      if (savedFiles) setOpenFiles(JSON.parse(savedFiles));
+
+      const savedActive = localStorage.getItem("activeFile");
+      if (savedActive) setActiveFile(JSON.parse(savedActive));
+
+      const hLayout = localStorage.getItem("horizontalLayout");
+      if (hLayout) setHorizontalLayout(JSON.parse(hLayout));
+
+      const vLayout = localStorage.getItem("verticalLayout");
+      if (vLayout) setVerticalLayout(JSON.parse(vLayout));
+
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // ✅ Save changes to localStorage
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem("activeTab", activeTab);
+  }, [activeTab, isLoaded]);
 
   useEffect(() => {
-    localStorage.setItem("activeTab", activeTab);
-  }, [activeTab]);
+    if (isLoaded) localStorage.setItem("openFiles", JSON.stringify(openFiles));
+  }, [openFiles, isLoaded]);
 
   useEffect(() => {
-    localStorage.setItem("openFiles", JSON.stringify(openFiles));
-  }, [openFiles]);
-
-  useEffect(() => {
-    if (activeFile) localStorage.setItem("activeFile", JSON.stringify(activeFile));
-    else localStorage.removeItem("activeFile");
-  }, [activeFile]);
+    if (isLoaded) {
+      if (activeFile) localStorage.setItem("activeFile", JSON.stringify(activeFile));
+      else localStorage.removeItem("activeFile");
+    }
+  }, [activeFile, isLoaded]);
 
   const handleFileClick = async (file: FileType) => {
     try {
@@ -62,17 +80,19 @@ export default function Page() {
     }
   };
 
-  // Get stored sizes from localStorage or fallback
-  const horizontalLayout = JSON.parse(localStorage.getItem("horizontalLayout") || "[20,55,25]");
-  const verticalLayout = JSON.parse(localStorage.getItem("verticalLayout") || "[70,30]");
-
   const handleHorizontalLayoutChange = (sizes: number[]) => {
-    localStorage.setItem("horizontalLayout", JSON.stringify(sizes));
+    setHorizontalLayout(sizes);
+    if (isLoaded) localStorage.setItem("horizontalLayout", JSON.stringify(sizes));
   };
 
   const handleVerticalLayoutChange = (sizes: number[]) => {
-    localStorage.setItem("verticalLayout", JSON.stringify(sizes));
+    setVerticalLayout(sizes);
+    if (isLoaded) localStorage.setItem("verticalLayout", JSON.stringify(sizes));
   };
+
+  if (!isLoaded) {
+    return <div className="h-screen w-screen bg-black" />; // Prevent hydration mismatch
+  }
 
   return (
     <div className="h-screen w-screen max-h-screen max-w-screen flex flex-col bg-black text-neutral-200 p-2 overflow-hidden">
@@ -83,25 +103,40 @@ export default function Page() {
 
       {/* Main layout */}
       <div className="max-w-screen h-full">
-        <PanelGroup direction="horizontal" onLayout={handleHorizontalLayoutChange} className="flex-1">
+        <PanelGroup
+          direction="horizontal"
+          layout={horizontalLayout}
+          onLayout={handleHorizontalLayoutChange}
+          className="flex-1"
+        >
           {/* Sidebar */}
           <div className="w-[50px] mr-1 border-neutral-800 bg-neutral-950">
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
           </div>
 
           {/* Left Panel */}
-          <Panel minSize={0} maxSize={80} defaultSize={horizontalLayout[0]} >
-            {activeTab === "explorer" && <Explorer onFileClick={handleFileClick} />}
-            {activeTab === "users" && <ActiveUsers />}
-            {activeTab === "search" && <SearchPanel />}
-            {activeTab === "chat" && <ChatPanel />}
+          <Panel minSize={0} maxSize={80} defaultSize={horizontalLayout[0]}>
+            <PanelGroup direction="vertical" className="h-full">
+              <Panel minSize={100} defaultSize={100}>
+                {activeTab === "explorer" && <Explorer onFileClick={handleFileClick} />}
+                {activeTab === "users" && <ActiveUsers />}
+                {activeTab === "search" && <SearchPanel />}
+                {activeTab === "chat" && <ChatPanel />}
+              </Panel>
+              <Panel maxSize={0} defaultSize={0}></Panel>
+            </PanelGroup>
           </Panel>
 
           <CustomResizeHandle direction="vertical" />
 
           {/* Editor + Console */}
           <Panel minSize={20} defaultSize={horizontalLayout[1]}>
-            <PanelGroup direction="vertical" className="h-full" onLayout={handleVerticalLayoutChange}>
+            <PanelGroup
+              direction="vertical"
+              layout={verticalLayout}
+              onLayout={handleVerticalLayoutChange}
+              className="h-full"
+            >
               <Panel minSize={0} defaultSize={verticalLayout[0]}>
                 <CodeEditor
                   openFiles={openFiles}
@@ -123,7 +158,12 @@ export default function Page() {
 
           {/* Preview */}
           <Panel minSize={0} defaultSize={horizontalLayout[2]}>
-            <RightPanel />
+            <PanelGroup direction="vertical" className="h-full">
+              <Panel minSize={100} defaultSize={100}>
+                <RightPanel />
+              </Panel>
+              <Panel maxSize={0} defaultSize={0}></Panel>
+            </PanelGroup>
           </Panel>
         </PanelGroup>
       </div>

@@ -79,7 +79,7 @@ export default function Terminal() {
   }, []);
 
   return (
-    <div className="h-full w-full bg-[#0a0a0a] border border-neutral-800 p-2">
+    <div className="h-full w-full bg-[#0a0a0a] p-2">
       <div ref={terminalRef} className="h-full w-full" />
     </div>
   );

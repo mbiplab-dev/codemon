@@ -1,7 +1,9 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import Terminal from "./Terminal";
 import { Plus, X } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
 
 interface TerminalInstance {
   id: string;
@@ -18,22 +20,30 @@ export default function Console() {
     activeIndex: null,
   });
 
-  // ✅ Restore terminals from localStorage
+  // ✅ Restore terminals from localStorage (client-side only)
   useEffect(() => {
-    const savedState = localStorage.getItem("consoleState");
-    if (savedState) {
-      setState(JSON.parse(savedState));
+    if (typeof window !== "undefined") {
+      const savedState = localStorage.getItem("consoleState");
+      if (savedState) {
+        try {
+          setState(JSON.parse(savedState));
+        } catch {
+          console.error("Failed to parse saved console state");
+        }
+      }
     }
   }, []);
 
   // ✅ Persist terminals whenever state changes
   useEffect(() => {
-    localStorage.setItem("consoleState", JSON.stringify(state));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("consoleState", JSON.stringify(state));
+    }
   }, [state]);
 
   const addTerminal = () => {
     setState((prev) => {
-      const newTerminal = { id: crypto.randomUUID() };
+      const newTerminal = { id: uuidv4() };
       const terminals = [...prev.terminals, newTerminal];
       return { terminals, activeIndex: terminals.length - 1 };
     });
@@ -99,7 +109,7 @@ export default function Console() {
         <div className="p-2 h-8 text-xs text-gray-400 border-b border-neutral-800">
           Terminals
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollable">
           {state.terminals.map((t, i) => (
             <div
               key={t.id}
