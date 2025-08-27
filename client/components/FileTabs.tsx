@@ -47,7 +47,7 @@ export default function FileTabs({
       <Droppable droppableId="tabs" direction="horizontal">
         {(provided) => (
           <div
-            className="flex items-center min-h-10 w-full bg-neutral-900 border-b border-neutral-800 overflow-x-auto"
+            className="flex items-center min-h-10 w-full bg-neutral-900 border-b border-neutral-800 overflow-x-auto overflow-y-hidden"
             {...provided.droppableProps}
             ref={provided.innerRef}
           >
@@ -123,21 +123,6 @@ export default function FileTabs({
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
-
-                      {/* Active file with users indicator */}
-                      {hasUsers && isActive && (
-                        <div className="absolute -top-1 -right-1 w-2 h-2 flex-shrink-0">
-                          <div className="absolute inset-0 bg-orange-400 rounded-full animate-ping opacity-75"></div>
-                          <div className="relative w-2 h-2 bg-orange-500 rounded-full"></div>
-                        </div>
-                      )}
-
-                      {/* Collaboration indicator */}
-                      {hasUsers && (
-                        <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2">
-                          <Users className="w-2.5 h-2.5 text-blue-400 opacity-60" />
-                        </div>
-                      )}
                     </div>
                   )}
                 </Draggable>

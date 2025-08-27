@@ -1,6 +1,11 @@
 "use client";
 
-import { useRoom, useOthers, useSelf, useUpdateMyPresence } from "@liveblocks/react/suspense";
+import {
+  useRoom,
+  useOthers,
+  useSelf,
+  useUpdateMyPresence,
+} from "@liveblocks/react/suspense";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Editor } from "@monaco-editor/react";
@@ -11,6 +16,7 @@ import FileTabs from "./FileTabs";
 import type { FileType } from "@/app/page";
 // @ts-ignore - y-monaco has no bundled types
 import { MonacoBinding } from "y-monaco";
+import toast from "react-hot-toast";
 
 type Props = {
   openFiles: FileType[];
@@ -31,7 +37,8 @@ export default function CollaborativeEditor({
   const self = useSelf();
   const updateMyPresence = useUpdateMyPresence();
 
-  const [editorRef, setEditorRef] = useState<MonacoEditor.IStandaloneCodeEditor>();
+  const [editorRef, setEditorRef] =
+    useState<MonacoEditor.IStandaloneCodeEditor>();
   const monacoRef = useRef<any>(null);
 
   // Keep Monaco models in a ref map to avoid stale state and to dispose properly.
@@ -40,10 +47,15 @@ export default function CollaborativeEditor({
   const bindingRef = useRef<any>(null);
   // Track cursor positions per file (so switching files restores the last position)
   const cursorPositionsRef = useRef<Record<string, MonacoEditor.IPosition>>({});
+  // Track which files have been initialized with content
+  const initializedFilesRef = useRef<Set<string>>(new Set());
 
   // Group users by file for FileTabs presence dots
   const fileUsers = useMemo(() => {
-    const map: Record<string, Array<{ id: string; name: string; color: string }>> = {};
+    const map: Record<
+      string,
+      Array<{ id: string; name: string; color: string }>
+    > = {};
     others.forEach((other) => {
       if (other.info && other.presence?.currentFile) {
         const user = other.info as { id: string; name: string; color: string };
@@ -64,6 +76,8 @@ export default function CollaborativeEditor({
       } catch {}
       delete modelMapRef.current[path];
     }
+    // Also remove from initialized files
+    initializedFilesRef.current.delete(path);
   }, []);
 
   // Cleanup binding helper
@@ -144,23 +158,86 @@ export default function CollaborativeEditor({
   }, [editorRef, activeFile, updateMyPresence]);
 
   // Create or reuse a Monaco model for the given file
-  const ensureModelForFile = useCallback(
-    async (file: FileType) => {
-      if (!monacoRef.current) return null;
-      const monaco = monacoRef.current as typeof import("monaco-editor");
+  const ensureModelForFile = useCallback(async (file: FileType) => {
+    if (!monacoRef.current) return null;
+    const monaco = monacoRef.current as typeof import("monaco-editor");
 
-      // Reuse existing model
-      if (modelMapRef.current[file.path]) {
-        return modelMapRef.current[file.path];
+    // Reuse existing model
+    if (modelMapRef.current[file.path]) {
+      return modelMapRef.current[file.path];
+    }
+
+    // Create a fresh model with the file's content as initial value
+    // This is important for new files that haven't been synced yet
+    const initialContent = file.content || "";
+    const model = monaco.editor.createModel(
+      initialContent,
+      file.language || "plaintext"
+    );
+    modelMapRef.current[file.path] = model;
+    return model;
+  }, []);
+
+  // Initialize Yjs text with file content if needed
+  const initializeYjsText = useCallback((yText: any, file: FileType) => {
+    const fileKey = file.path;
+
+    // Skip if already initialized
+    if (initializedFilesRef.current.has(fileKey)) {
+      return;
+    }
+
+    // Only initialize if Yjs text is empty AND we have file content
+    if (yText.length === 0 && file.content && file.content.trim() !== "") {
+      try {
+        yText.insert(0, file.content);
+        console.log(
+          `Initialized Yjs text for ${file.path} with content length: ${file.content.length}`
+        );
+      } catch (error) {
+        console.error(`Failed to initialize Yjs text for ${file.path}:`, error);
       }
+    }
 
-      // Create a fresh model (do NOT set initial value here; y-monaco binding will sync from Yjs)
-      const model = monaco.editor.createModel("", file.language || "plaintext");
-      modelMapRef.current[file.path] = model;
-      return model;
-    },
-    []
-  );
+    // Mark as initialized regardless to avoid repeated attempts
+    initializedFilesRef.current.add(fileKey);
+  }, []);
+
+  useEffect(() => {
+    if (!editorRef || !activeFile) return;
+
+    const handleSaveShortcut = async (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+        event.preventDefault();
+
+        try {
+          const content = editorRef.getValue();
+          const response = await fetch("http://localhost:3001/save-file", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              path: activeFile.path,
+              content,
+            }),
+          });
+
+          const data = await response.json();
+          if (response.ok) {
+            toast.success(`✅ File saved: ${data.path}`);
+          } else {
+            toast.error(`❌ Failed to save: ${data.message}`);
+          }
+        } catch (error) {
+          toast.error("Error saving file:"+ error);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [editorRef, activeFile]);
 
   // Core: switch the editor to the active file's model and (re)bind Yjs
   useEffect(() => {
@@ -177,39 +254,53 @@ export default function CollaborativeEditor({
       const model = await ensureModelForFile(activeFile);
       if (!model) return;
 
-      // Switch editor to this model
-      editorRef.setModel(model);
-
       // Prepare Yjs text
       const yTextKey = `file:${activeFile.path}`;
       const yText = provider.getYDoc().getText(yTextKey);
 
-      // Initialize Yjs text if empty. This prevents y-monaco from calling setValue with unexpected data.
-      // We ONLY seed once when yText is empty.
-      if (yText.length === 0 && (activeFile.content ?? "") !== "") {
-        // Insert raw string content into yText. y-monaco will sync it down to the model.
-        yText.insert(0, activeFile.content);
-      }
+      // Initialize Yjs text if needed
+      initializeYjsText(yText, activeFile);
 
-      // Bind Yjs <-> Monaco
-      bindingRef.current = new MonacoBinding(
-        yText,
-        model,
-        new Set([editorRef]),
-        provider.awareness as unknown as Awareness
-      );
+      // Switch editor to this model
+      editorRef.setModel(model);
 
-      // Restore cursor if we have it
-      const lastPos = cursorPositionsRef.current[activeFile.path];
-      if (lastPos) {
-        try {
-          editorRef.setPosition(lastPos);
-          editorRef.revealPositionInCenter(lastPos);
-        } catch {}
-      } else {
-        // Otherwise place at start (avoid jumping to end for multi-user sessions)
-        editorRef.setPosition({ lineNumber: 1, column: 1 });
-        editorRef.revealPositionInCenter({ lineNumber: 1, column: 1 });
+      // Wait a bit for the model to be properly set
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      try {
+        // Bind Yjs <-> Monaco
+        bindingRef.current = new MonacoBinding(
+          yText,
+          model,
+          new Set([editorRef]),
+          provider.awareness as unknown as Awareness
+        );
+
+        console.log(`Created binding for file: ${activeFile.path}`);
+
+        // Restore cursor if we have it
+        const lastPos = cursorPositionsRef.current[activeFile.path];
+        if (lastPos) {
+          try {
+            editorRef.setPosition(lastPos);
+            editorRef.revealPositionInCenter(lastPos);
+          } catch (error) {
+            console.warn("Failed to restore cursor position:", error);
+          }
+        } else {
+          // Otherwise place at start (avoid jumping to end for multi-user sessions)
+          editorRef.setPosition({ lineNumber: 1, column: 1 });
+        }
+
+        // Force a layout update to ensure content is displayed
+        editorRef.layout();
+      } catch (error) {
+        console.error("Failed to create Monaco binding:", error);
+
+        // Fallback: if binding fails, at least show the content
+        if (activeFile.content && model.getValue() !== activeFile.content) {
+          model.setValue(activeFile.content);
+        }
       }
     };
 
@@ -219,7 +310,45 @@ export default function CollaborativeEditor({
       // We only destroy binding on switch/unmount here.
       destroyBinding();
     };
-  }, [editorRef, activeFile, provider, ensureModelForFile, destroyBinding]);
+  }, [
+    editorRef,
+    activeFile,
+    provider,
+    ensureModelForFile,
+    destroyBinding,
+    initializeYjsText,
+  ]);
+
+  // Handle file content updates from external sources (like file system changes)
+  useEffect(() => {
+    if (!activeFile || !editorRef || !provider) return;
+
+    const model = modelMapRef.current[activeFile.path];
+    if (!model) return;
+
+    // If the file content has been updated externally and doesn't match the model
+    if (activeFile.content && model.getValue() !== activeFile.content) {
+      const yTextKey = `file:${activeFile.path}`;
+      const yText = provider.getYDoc().getText(yTextKey);
+
+      // Update Yjs text if it's different
+      if (yText.toString() !== activeFile.content) {
+        try {
+          // Clear and reset the Yjs text
+          if (yText.length > 0) {
+            yText.delete(0, yText.length);
+          }
+          yText.insert(0, activeFile.content);
+          console.log(`Updated Yjs text for ${activeFile.path}`);
+        } catch (error) {
+          console.error(
+            `Failed to update Yjs text for ${activeFile.path}:`,
+            error
+          );
+        }
+      }
+    }
+  }, [activeFile, editorRef, provider]);
 
   const handleOnMount = useCallback(
     (editorInstance: MonacoEditor.IStandaloneCodeEditor, monaco: any) => {
@@ -252,7 +381,8 @@ export default function CollaborativeEditor({
         monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
           target: monaco.languages.typescript.ScriptTarget.ES2020,
           allowNonTsExtensions: true,
-          moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+          moduleResolution:
+            monaco.languages.typescript.ModuleResolutionKind.NodeJs,
           module: monaco.languages.typescript.ModuleKind.CommonJS,
           noEmit: true,
           esModuleInterop: true,
@@ -264,7 +394,8 @@ export default function CollaborativeEditor({
         monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
           target: monaco.languages.typescript.ScriptTarget.ES2020,
           allowNonTsExtensions: true,
-          moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+          moduleResolution:
+            monaco.languages.typescript.ModuleResolutionKind.NodeJs,
           module: monaco.languages.typescript.ModuleKind.CommonJS,
           noEmit: true,
           allowJs: true,
@@ -290,6 +421,7 @@ export default function CollaborativeEditor({
     return () => {
       destroyBinding();
       Object.keys(modelMapRef.current).forEach((p) => disposeModel(p));
+      initializedFilesRef.current.clear();
       // Editor will be disposed by monaco-react internally when component unmounts
     };
   }, [destroyBinding, disposeModel]);
@@ -297,7 +429,9 @@ export default function CollaborativeEditor({
   return (
     <div className="h-full w-full flex flex-col bg-neutral-950 border border-neutral-800 rounded-lg overflow-hidden">
       {/* Render cursors for collaborative editing */}
-      {provider && editorRef && <Cursors yProvider={provider} editor={editorRef} />}
+      {provider && editorRef && (
+        <Cursors yProvider={provider} editor={editorRef} />
+      )}
 
       {/* File tabs with user presence indicators */}
       <FileTabs
@@ -345,45 +479,52 @@ export default function CollaborativeEditor({
         )}
       </div>
 
-      {/* Monaco Editor.
-          NOTE: We DO NOT pass defaultValue/defaultLanguage because we manage models ourselves.
-      */}
+      {/* Monaco Editor */}
       <div className="flex-1">
-        <Editor
-          onMount={handleOnMount}
-          height="100%"
-          width="100%"
-          theme="collaborative-dark"
-          options={{
-            tabSize: 2,
-            padding: { top: 20 },
-            automaticLayout: true,
-            minimap: { enabled: true },
-            fontSize: 14,
-            fontLigatures: true,
-            smoothScrolling: true,
-            cursorBlinking: "smooth",
-            scrollBeyondLastLine: false,
-            lineHeight: 22,
-            scrollbar: {
-              vertical: "visible",
-              horizontal: "visible",
-            },
-            wordWrap: "on",
-            rulers: [80, 120],
-            quickSuggestions: {
-              other: true,
-              comments: true,
-              strings: true,
-            },
-            parameterHints: { enabled: true },
-            suggestOnTriggerCharacters: true,
-            acceptSuggestionOnEnter: "on",
-            tabCompletion: "on",
-            formatOnPaste: true,
-            formatOnType: false,
-          }}
-        />
+        {activeFile ? (
+          <Editor
+            onMount={handleOnMount}
+            height="100%"
+            width="100%"
+            theme="collaborative-dark"
+            options={{
+              tabSize: 2,
+              padding: { top: 20 },
+              automaticLayout: true,
+              minimap: { enabled: true },
+              fontSize: 14,
+              fontLigatures: true,
+              smoothScrolling: true,
+              cursorBlinking: "smooth",
+              scrollBeyondLastLine: false,
+              lineHeight: 22,
+              scrollbar: {
+                vertical: "visible",
+                horizontal: "visible",
+              },
+              wordWrap: "on",
+              rulers: [80, 120],
+              quickSuggestions: {
+                other: true,
+                comments: true,
+                strings: true,
+              },
+              parameterHints: { enabled: true },
+              suggestOnTriggerCharacters: true,
+              acceptSuggestionOnEnter: "on",
+              tabCompletion: "on",
+              formatOnPaste: true,
+              formatOnType: false,
+            }}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="text-center">
+              <div className="text-lg mb-2">Welcome to codemon</div>
+              <div className="text-sm">Open a file to start coding</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

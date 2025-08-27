@@ -2,7 +2,7 @@
 
 import { useOthers, useSelf } from "@liveblocks/react/suspense";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { editor as MonacoEditor } from "monaco-editor";
 
 type User = {
@@ -20,18 +20,20 @@ type Props = {
 export function Cursors({ yProvider, editor }: Props) {
   const others = useOthers();
   const self = useSelf();
-  const [decorations, setDecorations] = useState<string[]>([]);
+
+  // Store previous decorations without causing re-render
+  const decorationsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!editor || !yProvider.awareness) return;
 
     const awareness = yProvider.awareness;
-    
+
     // Update our cursor position when editor selection changes
     const updateCursor = () => {
       const selection = editor.getSelection();
       const position = editor.getPosition();
-      
+
       if (selection && position) {
         awareness.setLocalStateField("cursor", {
           position: {
@@ -50,24 +52,24 @@ export function Cursors({ yProvider, editor }: Props) {
       }
     };
 
-    // Listen to cursor position changes
+    // Listen to cursor and selection changes
     const disposable = editor.onDidChangeCursorPosition(updateCursor);
     const selectionDisposable = editor.onDidChangeCursorSelection(updateCursor);
 
-    // Listen to awareness changes and render other cursors
+    // Render other users' cursors
     const renderCursors = () => {
       const otherCursors: MonacoEditor.IModelDeltaDecoration[] = [];
-      
+
       others.forEach((other) => {
         const cursor = other.presence?.cursor;
         const currentFile = other.presence?.currentFile;
         const myCurrentFile = self?.presence?.currentFile;
-        
-        // Only show cursors for users in the same file
+
+        // Only render if in the same file
         if (cursor && currentFile === myCurrentFile && other.info) {
           const user = other.info as User;
-          
-          // Cursor position decoration
+
+          // Cursor line
           otherCursors.push({
             range: new monaco.Range(
               cursor.position.lineNumber,
@@ -77,16 +79,18 @@ export function Cursors({ yProvider, editor }: Props) {
             ),
             options: {
               className: `cursor-${user.id}`,
-              stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+              stickiness:
+                monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
               beforeContentClassName: `cursor-line cursor-${user.id}`,
               afterContentClassName: `cursor-label cursor-${user.id}`,
             },
           });
 
-          // Selection decoration if different from cursor position
+          // Selection range if present
           if (cursor.selection) {
-            const { startLineNumber, startColumn, endLineNumber, endColumn } = cursor.selection;
-            
+            const { startLineNumber, startColumn, endLineNumber, endColumn } =
+              cursor.selection;
+
             if (
               startLineNumber !== endLineNumber ||
               startColumn !== endColumn
@@ -100,7 +104,8 @@ export function Cursors({ yProvider, editor }: Props) {
                 ),
                 options: {
                   className: `selection-${user.id}`,
-                  stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+                  stickiness:
+                    monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
                 },
               });
             }
@@ -108,79 +113,84 @@ export function Cursors({ yProvider, editor }: Props) {
         }
       });
 
-      const newDecorations = editor.deltaDecorations(decorations, otherCursors);
-      setDecorations(newDecorations);
+      // Apply decorations without causing re-renders
+      decorationsRef.current = editor.deltaDecorations(
+        decorationsRef.current,
+        otherCursors
+      );
     };
 
     // Initial render
     renderCursors();
 
     // Listen to awareness changes
-    awareness.on('change', renderCursors);
+    awareness.on("change", renderCursors);
 
     // Cleanup
     return () => {
       disposable.dispose();
       selectionDisposable.dispose();
-      awareness.off('change', renderCursors);
-      editor.deltaDecorations(decorations, []);
+      awareness.off("change", renderCursors);
+      editor.deltaDecorations(decorationsRef.current, []);
     };
-  }, [editor, yProvider.awareness, others, self, decorations]);
+  }, [editor, yProvider.awareness, others, self]);
 
-  // Inject cursor styles
+  // Inject dynamic styles for cursors
   useEffect(() => {
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
-      ${others.map((other) => {
-        const user = other.info as User;
-        const color = user?.color || '#ff0000';
-        
-        return `
-          .cursor-${user?.id} {
-            position: relative;
-          }
-          
-          .cursor-line.cursor-${user?.id}::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -1px;
-            width: 2px;
-            height: 1.2em;
-            background-color: ${color};
-            z-index: 1000;
-            animation: blink 1s infinite;
-          }
-          
-          .cursor-label.cursor-${user?.id}::after {
-            content: '${user?.name || 'Anonymous'}';
-            position: absolute;
-            top: -20px;
-            left: 0;
-            background-color: ${color};
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            white-space: nowrap;
-            z-index: 1001;
-            pointer-events: none;
-          }
-          
-          .selection-${user?.id} {
-            background-color: ${color}33 !important;
-          }
-        `;
-      }).join('\n')}
-      
+      ${others
+        .map((other) => {
+          const user = other.info as User;
+          const color = user?.color || "#ff0000";
+
+          return `
+            .cursor-${user?.id} {
+              position: relative;
+            }
+
+            .cursor-line.cursor-${user?.id}::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: -1px;
+              width: 2px;
+              height: 1.2em;
+              background-color: ${color};
+              z-index: 1000;
+              animation: blink 1s infinite;
+            }
+
+            .cursor-label.cursor-${user?.id}::after {
+              content: '${user?.name || "Anonymous"}';
+              position: absolute;
+              top: -20px;
+              left: 0;
+              background-color: ${color};
+              color: white;
+              padding: 2px 6px;
+              border-radius: 3px;
+              font-size: 11px;
+              white-space: nowrap;
+              z-index: 1001;
+              pointer-events: none;
+            }
+
+            .selection-${user?.id} {
+              background-color: ${color}33 !important;
+            }
+          `;
+        })
+        .join("\n")}
+
       @keyframes blink {
         0%, 50% { opacity: 1; }
         51%, 100% { opacity: 0; }
       }
     `;
-    
+
     document.head.appendChild(style);
-    
+
     return () => {
       if (document.head.contains(style)) {
         document.head.removeChild(style);
@@ -188,5 +198,5 @@ export function Cursors({ yProvider, editor }: Props) {
     };
   }, [others]);
 
-  return null; // This component only handles cursor rendering
+  return null; // This component only manages cursor rendering
 }
