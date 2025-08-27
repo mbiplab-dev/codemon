@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { ChevronRight, ChevronDown, Folder, File } from "lucide-react";
@@ -18,19 +19,29 @@ export default function Explorer({
   const [tree, setTree] = useState<FileNode | null>(null);
   const [openedFolders, setOpenedFolders] = useState<Set<string>>(new Set());
 
-  // Load tree and opened folders from localStorage
+  // Load tree & opened folders; subscribe to socket updates
   useEffect(() => {
-    const savedTree = localStorage.getItem("explorerTree");
-    if (savedTree) setTree(JSON.parse(savedTree));
+    try {
+      const savedTree = localStorage.getItem("explorerTree");
+      if (savedTree) setTree(JSON.parse(savedTree));
+    } catch {
+      // ignore bad cache
+    }
 
-    const savedOpened = localStorage.getItem("openedFolders");
-    if (savedOpened) setOpenedFolders(new Set(JSON.parse(savedOpened)));
+    try {
+      const savedOpened = localStorage.getItem("openedFolders");
+      if (savedOpened) setOpenedFolders(new Set(JSON.parse(savedOpened)));
+    } catch {
+      // ignore bad cache
+    }
 
-    const socket = io("http://localhost:3001");
+    const socket = io("http://localhost:3001", { transports: ["websocket"] });
 
     socket.on("fs-update", (data: FileNode) => {
       setTree(data);
-      localStorage.setItem("explorerTree", JSON.stringify(data));
+      try {
+        localStorage.setItem("explorerTree", JSON.stringify(data));
+      } catch {}
     });
 
     return () => {
@@ -38,16 +49,14 @@ export default function Explorer({
     };
   }, []);
 
-  // Toggle folder open state
   const toggleFolder = (path: string) => {
-    const newOpened = new Set(openedFolders);
-    if (openedFolders.has(path)) {
-      newOpened.delete(path);
-    } else {
-      newOpened.add(path);
-    }
-    setOpenedFolders(newOpened);
-    localStorage.setItem("openedFolders", JSON.stringify(Array.from(newOpened)));
+    const next = new Set(openedFolders);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    setOpenedFolders(next);
+    try {
+      localStorage.setItem("openedFolders", JSON.stringify(Array.from(next)));
+    } catch {}
   };
 
   const FileItem = ({ node }: { node: FileNode }) => {
@@ -57,7 +66,7 @@ export default function Explorer({
       return (
         <div>
           <div
-            className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-orange-500/20 rounded-md"
+            className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-orange-500/20 rounded-md select-none"
             onClick={() => toggleFolder(node.path)}
           >
             {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -78,7 +87,7 @@ export default function Explorer({
 
     return (
       <div
-        className="flex items-center gap-1 px-2 py-1 ml-6 cursor-pointer hover:bg-orange-500/20 rounded-md"
+        className="flex items-center gap-1 px-2 py-1 ml-6 cursor-pointer hover:bg-orange-500/20 rounded-md select-none"
         onClick={() => onFileClick({ name: node.name, path: node.path })}
       >
         <File className="text-gray-400" size={16} />
@@ -94,7 +103,11 @@ export default function Explorer({
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 scrollable">
-        {tree ? <FileItem node={tree} /> : <p className="text-gray-500 text-sm">Loading...</p>}
+        {tree ? (
+          <FileItem node={tree} />
+        ) : (
+          <p className="text-gray-500 text-sm">Loading...</p>
+        )}
       </div>
     </div>
   );

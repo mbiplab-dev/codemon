@@ -61,7 +61,8 @@ const RightPanel = ({ srcDoc }) => {
 
       {/* Tab Content */}
       {activeTab === "preview" ? (
-        <Preview viewMode={viewMode} setViewMode={setViewMode} />
+        <div></div>
+        // <Preview viewMode={viewMode} setViewMode={setViewMode} />
       ) : (
         <Chat />
       )}
