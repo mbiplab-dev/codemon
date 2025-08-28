@@ -22,7 +22,7 @@ type User = {
 };
 
 export default function Topbar() {
-  /** ✅ Connection + Time */
+  /** Connection + Time */
   const [isConnected, setIsConnected] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const formatTime = (date: Date) =>
@@ -38,13 +38,13 @@ export default function Topbar() {
     return () => clearInterval(connectionCheck);
   }, []);
 
-  /** ✅ Liveblocks Users */
+  /** Liveblocks Users */
   const others = useOthers();
   const self = useSelf();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  /** ✅ Prepare users and group by file */
+  /** Prepare users and group by file */
   const { allUsers, usersByFile } = useMemo(() => {
     const usersByFile: Record<string, User[]> = {};
     const allUsers: User[] = [];
@@ -72,7 +72,7 @@ export default function Topbar() {
     return { allUsers, usersByFile };
   }, [others, self]);
 
-  /** ✅ Close dropdown on outside click */
+  /** Close dropdown on outside click */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -83,7 +83,7 @@ export default function Topbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  /** ✅ Helpers */
+  /** Helpers */
   const getFileDisplayName = (filePath: string) =>
     filePath === "No file open" ? filePath : filePath.split("/").pop() || filePath;
 
@@ -97,7 +97,7 @@ export default function Topbar() {
 
   return (
     <div className="w-full h-12 flex items-center justify-between px-4 bg-neutral-950 border-b border-neutral-800">
-      {/* ✅ Left: Project Info */}
+      {/* Left: Project Info */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Image src="/logo.png" alt="logo" width={120} height={14} />
@@ -108,7 +108,7 @@ export default function Topbar() {
         </div>
       </div>
 
-      {/* ✅ Center: Connection & Time */}
+      {/* Center: Connection & Time */}
       <div className="flex items-center gap-4 text-sm text-neutral-400">
         <div className="flex items-center gap-2">
           {isConnected ? (
@@ -130,9 +130,9 @@ export default function Topbar() {
         <div className="text-neutral-500">{formatTime(currentTime)}</div>
       </div>
 
-      {/* ✅ Right: Users + Settings */}
+      {/* Right: Users + Settings */}
       <div className="flex items-center gap-3 relative" ref={dropdownRef}>
-        {/* ✅ Users Dropdown */}
+        {/* Users Dropdown */}
         <button
           onClick={() => setShowDropdown((prev) => !prev)}
           className="flex items-center gap-2 px-3 py-2 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-300 hover:text-white"
@@ -158,7 +158,7 @@ export default function Topbar() {
           </div>
         </button>
 
-        {/* ✅ Dropdown */}
+        {/* Dropdown */}
         {showDropdown && (
           <div className="absolute top-14 right-0 w-80 max-h-96 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl z-50 overflow-hidden animate-fadeIn">
             {/* Header */}
@@ -233,7 +233,7 @@ export default function Topbar() {
   );
 }
 
-/** ✅ Avatar Subcomponent */
+/** Avatar Subcomponent */
 function Avatar({ user, size }: { user: User; size: "sm" | "md" }) {
   const sizeClasses = size === "sm" ? "w-6 h-6 border-2" : "w-7 h-7 border";
   return (

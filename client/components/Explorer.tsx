@@ -25,7 +25,7 @@ export default function Explorer({
       const savedTree = localStorage.getItem("explorerTree");
       if (savedTree) setTree(JSON.parse(savedTree));
     } catch {
-      // ignore bad cache
+      
     }
 
     try {

@@ -46,7 +46,7 @@ export default function Terminal() {
       socketRef.current = io("http://localhost:3001");
 
       socketRef.current.on("connect", () => {
-        // tell server to actually start a shell (cmd/git bash/etc.)
+        // tell server to start a shell (cmd/git bash/etc.)
         socketRef.current?.emit("createTerminal", { shellType: "cmd" });
       });
 

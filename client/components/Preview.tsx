@@ -34,7 +34,6 @@ const Preview = () => {
 
   const refreshPage = () => {
     if (iframeRef.current) {
-      // Force reload by updating src
       const currentSrc = iframeRef.current.src;
       iframeRef.current.src = '';
       setTimeout(() => {

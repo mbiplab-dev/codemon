@@ -3,7 +3,7 @@ import Preview from "./Preview";
 import Chat from "./AiChatPanel";
 
 const RightPanel = ({ srcDoc }) => {
-  // ✅ Initialize viewMode from localStorage (or default to "desktop")
+  // Initialize viewMode from localStorage (or default to "desktop")
   const [viewMode, setViewMode] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("viewMode") || "desktop";
@@ -11,7 +11,7 @@ const RightPanel = ({ srcDoc }) => {
     return "desktop";
   });
 
-  // ✅ Initialize activeTab from localStorage (or default to "preview")
+  // Initialize activeTab from localStorage (or default to "preview")
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("activeTab") || "preview";
@@ -19,14 +19,14 @@ const RightPanel = ({ srcDoc }) => {
     return "preview";
   });
 
-  // ✅ Persist viewMode when it changes
+  // Persist viewMode when it changes
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("viewMode", viewMode);
     }
   }, [viewMode]);
 
-  // ✅ Persist activeTab when it changes
+  // Persist activeTab when it changes
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("activeTab", activeTab);

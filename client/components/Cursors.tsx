@@ -113,7 +113,6 @@ export function Cursors({ yProvider, editor }: Props) {
         }
       });
 
-      // Apply decorations without causing re-renders
       decorationsRef.current = editor.deltaDecorations(
         decorationsRef.current,
         otherCursors

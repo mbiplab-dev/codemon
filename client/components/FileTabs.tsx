@@ -15,7 +15,7 @@ type FileTabsProps = {
   activeFile: FileType | null;
   setActiveFile: (file: FileType | null) => void;
   setOpenFiles: (files: FileType[]) => void;
-  fileUsers?: Record<string, User[]>; // Users currently in each file
+  fileUsers?: Record<string, User[]>;
 };
 
 export default function FileTabs({

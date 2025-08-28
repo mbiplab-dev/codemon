@@ -23,7 +23,6 @@ export const proxyHandler = async (req, res) => {
       const parsedUrl = new URL(targetUrl);
       const baseUrl = parsedUrl.origin;
 
-      // Rewrite href/src attributes
       body = body.replace(/((href|src)=["'])([^"']+)/gi, (match, prefix, attr, url) => {
         let fullUrl;
         if (url.startsWith("http")) fullUrl = url;
@@ -33,7 +32,6 @@ export const proxyHandler = async (req, res) => {
         return `${prefix}/proxy?url=${encodeURIComponent(fullUrl)}`;
       });
 
-      // Rewrite CSS url()
       body = body.replace(/url\(["']?([^)"']+)["']?\)/gi, (match, url) => {
         if (url.startsWith("data:")) return match;
         let fullUrl = url.startsWith("http") ? url : new URL(url, baseUrl).href;

@@ -20,7 +20,7 @@ export default function Console() {
     activeIndex: null,
   });
 
-  // ✅ Restore terminals from localStorage (client-side only)
+  // Restore terminals from localStorage (client-side only)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem("consoleState");
@@ -34,7 +34,7 @@ export default function Console() {
     }
   }, []);
 
-  // ✅ Persist terminals whenever state changes
+  // Persist terminals whenever state changes
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("consoleState", JSON.stringify(state));

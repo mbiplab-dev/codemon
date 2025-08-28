@@ -19,7 +19,7 @@ app.use(proxyRoutes);
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-const ROOT_DIR = path.resolve("../../");
+const ROOT_DIR = path.resolve("../");
 
 io.on("connection", (socket) => {
   console.log("✅ Client connected");

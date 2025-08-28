@@ -60,7 +60,6 @@ function Room({ children }: { children: React.ReactNode }) {
 }
 
 export default function Page() {
-  // Initialize with defaults (SSR safe)
   const [activeTab, setActiveTab] = useState<
     "explorer" | "users" | "search" | "chat"
   >("explorer");

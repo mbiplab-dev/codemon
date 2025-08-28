@@ -14,7 +14,6 @@ import { Awareness } from "y-protocols/awareness";
 import { Cursors } from "./Cursors";
 import FileTabs from "./FileTabs";
 import type { FileType } from "@/app/page";
-// @ts-ignore - y-monaco has no bundled types
 import { MonacoBinding } from "y-monaco";
 import toast from "react-hot-toast";
 
@@ -225,9 +224,9 @@ export default function CollaborativeEditor({
 
           const data = await response.json();
           if (response.ok) {
-            toast.success(`✅ File saved: ${data.path}`);
+            toast.success(`File saved: ${data.path}`);
           } else {
-            toast.error(`❌ Failed to save: ${data.message}`);
+            toast.error(`Failed to save: ${data.message}`);
           }
         } catch (error) {
           toast.error("Error saving file:"+ error);
@@ -422,7 +421,6 @@ export default function CollaborativeEditor({
       destroyBinding();
       Object.keys(modelMapRef.current).forEach((p) => disposeModel(p));
       initializedFilesRef.current.clear();
-      // Editor will be disposed by monaco-react internally when component unmounts
     };
   }, [destroyBinding, disposeModel]);
 
