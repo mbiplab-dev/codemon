@@ -6,38 +6,15 @@ import {
   RefreshCw,
   Smartphone,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 
-const Preview = ({ viewMode, setViewMode }) => {
-  const defaultUrl = "http://amazon.in";
+const Preview = () => {
+  const defaultUrl = "https://biplabmohanty.com";
   const [url, setUrl] = useState(defaultUrl);
   const [history, setHistory] = useState([defaultUrl]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [viewMode, setViewMode] = useState("desktop");
   const iframeRef = useRef(null);
-
-  const proxyBase = "http://localhost:3001/proxy?url=";
-
-  // ✅ Load saved URL & history from localStorage (client-side only)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedUrl = localStorage.getItem("previewUrl");
-      const savedHistory = localStorage.getItem("previewHistory");
-      const savedIndex = localStorage.getItem("previewIndex");
-
-      if (savedUrl) setUrl(savedUrl);
-      if (savedHistory) setHistory(JSON.parse(savedHistory));
-      if (savedIndex) setCurrentIndex(Number(savedIndex));
-    }
-  }, []);
-
-  // ✅ Persist URL & history when they change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("previewUrl", url);
-      localStorage.setItem("previewHistory", JSON.stringify(history));
-      localStorage.setItem("previewIndex", currentIndex.toString());
-    }
-  }, [url, history, currentIndex]);
 
   const goBack = () => {
     if (currentIndex > 0) {
@@ -57,22 +34,35 @@ const Preview = ({ viewMode, setViewMode }) => {
 
   const refreshPage = () => {
     if (iframeRef.current) {
-      iframeRef.current.src = proxyBase + encodeURIComponent(url);
+      // Force reload by updating src
+      const currentSrc = iframeRef.current.src;
+      iframeRef.current.src = '';
+      setTimeout(() => {
+        if (iframeRef.current) {
+          iframeRef.current.src = currentSrc;
+        }
+      }, 100);
     }
   };
 
-  const handleEnterUrl = (e) => {
+  const handleUrlChange = (e) => {
     if (e.key === "Enter") {
       let newUrl = e.target.value.trim();
       if (!newUrl.startsWith("http")) {
         newUrl = `https://${newUrl}`;
       }
+      
+      // Add to history
       const newHistory = history.slice(0, currentIndex + 1);
       newHistory.push(newUrl);
       setHistory(newHistory);
       setCurrentIndex(newHistory.length - 1);
       setUrl(newUrl);
     }
+  };
+
+  const openInNewTab = () => {
+    window.open(url, "_blank");
   };
 
   return (
@@ -87,6 +77,7 @@ const Preview = ({ viewMode, setViewMode }) => {
         >
           <ChevronLeft className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
+        
         <button
           onClick={goForward}
           disabled={currentIndex >= history.length - 1}
@@ -95,6 +86,7 @@ const Preview = ({ viewMode, setViewMode }) => {
         >
           <ChevronRight className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
+        
         <button
           onClick={refreshPage}
           className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
@@ -102,17 +94,17 @@ const Preview = ({ viewMode, setViewMode }) => {
         >
           <RefreshCw className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
+        
         <button
-          onClick={() =>
-            setViewMode(viewMode === "desktop" ? "mobile" : "desktop")
-          }
+          onClick={() => setViewMode(viewMode === "desktop" ? "mobile" : "desktop")}
           className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
           title="Toggle Mobile View"
         >
           <Smartphone className="w-4 h-4 text-gray-300 hover:text-orange-400" />
         </button>
+        
         <button
-          onClick={() => window.open(url, "_blank")}
+          onClick={openInNewTab}
           className="p-1 border border-transparent hover:border hover:border-orange-500 transition rounded"
           title="Open in New Tab"
         >
@@ -124,17 +116,17 @@ const Preview = ({ viewMode, setViewMode }) => {
           <input
             type="text"
             defaultValue={url}
-            onKeyDown={handleEnterUrl}
+            onKeyDown={handleUrlChange}
             className="bg-transparent w-full outline-none"
           />
         </div>
       </div>
 
-      {/* Live Website Preview via Proxy */}
+      {/* Live Website Preview */}
       <iframe
         ref={iframeRef}
         key={url}
-        src={proxyBase + encodeURIComponent(url)}
+        src={url}
         title="Live Browser Preview"
         className={`bg-white rounded-b shadow flex-1 ${
           viewMode === "mobile"

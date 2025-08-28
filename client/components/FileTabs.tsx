@@ -119,7 +119,7 @@ export default function FileTabs({
                           e.stopPropagation();
                           handleClose(tab);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-0.5 text-gray-300 hover:text-red-400 flex-shrink-0 ml-1"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-0.5 text-gray-300 hover:text-red-400 flex-shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>

@@ -25,8 +25,6 @@ function generateUser() {
 
 export async function POST(request: NextRequest) {
   try {
-    // In a real app, you'd get the user from your auth system
-    // For now, we'll generate a random user for demo purposes
     const user = generateUser();
 
     // Create a session for the user

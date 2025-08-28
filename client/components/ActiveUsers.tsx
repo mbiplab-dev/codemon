@@ -79,7 +79,7 @@ export default function ActiveUsers() {
       </div>
 
       {/* Users List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollable">
         {showDetails ? (
           // Detailed view grouped by files
           Object.entries(usersByFile).map(([filePath, users]) => (

@@ -490,7 +490,6 @@ export default function CollaborativeEditor({
             options={{
               tabSize: 2,
               padding: { top: 20 },
-              automaticLayout: true,
               minimap: { enabled: true },
               fontSize: 14,
               fontLigatures: true,
@@ -503,7 +502,6 @@ export default function CollaborativeEditor({
                 horizontal: "visible",
               },
               wordWrap: "on",
-              rulers: [80, 120],
               quickSuggestions: {
                 other: true,
                 comments: true,

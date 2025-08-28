@@ -53,6 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
               className={`group p-2 m-1 w-full flex justify-center rounded-lg transition ${
                 activeTab === key ? "bg-neutral-800" : ""
               }`}
+              title={label}
             >
               <Icon
                 className={`w-6 h-6 ${
@@ -61,9 +62,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
                     : "text-neutral-300 group-hover:text-orange-500/80"
                 }`}
               />
-              <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-neutral-900 text-white text-sm border border-orange-500/80 rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-lg">
-                {label}
-              </span>
             </button>
           </div>
         ))}
@@ -76,6 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
             <button
               onClick={() => toggleDropdown(key)}
               className="group p-2 m-1 w-full flex justify-center rounded-lg transition"
+              title={label}
             >
               <Icon
                 className={`w-6 h-6 ${
@@ -84,9 +83,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
                     : "text-neutral-300 group-hover:text-orange-500/80"
                 }`}
               />
-              <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-neutral-900 text-white text-sm border border-orange-500/80 rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow-lg">
-                {label}
-              </span>
             </button>
 
             {/* Side Dropdown */}

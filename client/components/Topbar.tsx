@@ -1,225 +1,252 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+
 import {
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Share2,
-  X,
+  Folder,
+  Terminal,
+  Code,
+  Settings,
+  Wifi,
+  WifiOff,
+  Users,
   ChevronDown,
-  Copy,
 } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useOthers, useSelf } from "@liveblocks/react/suspense";
 import Image from "next/image";
-import { createPortal } from "react-dom";
 
-const Topbar = () => {
-  const [openMenu, setOpenMenu] = useState(null);
-  const [openShareMenu, setOpenShareMenu] = useState(false);
-  const [projectName, setProjectName] = useState("MyProject");
-  const [isEditing, setIsEditing] = useState(false);
-  const inputRef = useRef(null);
+type User = {
+  id: string;
+  name: string;
+  color: string;
+  avatar?: string;
+};
 
-  const username = "username"; // fixed username
+export default function Topbar() {
+  /** ✅ Connection + Time */
+  const [isConnected, setIsConnected] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
 
-  const menus = {
-    File: ["New File", "Open File", "Save", "Save As", "Exit"],
-    Edit: ["Undo", "Redo", "Cut", "Copy", "Paste"],
-    View: ["Explorer", "Search", "Extensions", "Terminal"],
-    Terminal: ["New Terminal", "Split Terminal", "Run Task"],
-    Help: ["Documentation", "About", "Check for Updates"],
-  };
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const handleMenuToggle = (menu) => {
-    setOpenMenu(openMenu === menu ? null : menu);
-  };
+  useEffect(() => {
+    const connectionCheck = setInterval(() => setIsConnected(navigator.onLine), 5000);
+    return () => clearInterval(connectionCheck);
+  }, []);
 
-  const handleEditClick = () => {
-    setIsEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
+  /** ✅ Liveblocks Users */
+  const others = useOthers();
+  const self = useSelf();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const handleBlur = () => {
-    setIsEditing(false);
-  };
+  /** ✅ Prepare users and group by file */
+  const { allUsers, usersByFile } = useMemo(() => {
+    const usersByFile: Record<string, User[]> = {};
+    const allUsers: User[] = [];
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      setIsEditing(false);
+    // Self
+    if (self?.info) {
+      const selfUser = self.info as User;
+      const currentFile = self.presence?.currentFile ?? "No file open";
+      allUsers.push(selfUser);
+      usersByFile[currentFile] = usersByFile[currentFile] || [];
+      usersByFile[currentFile].push(selfUser);
     }
+
+    // Others
+    others.forEach((other) => {
+      if (other.info) {
+        const user = other.info as User;
+        const currentFile = other.presence?.currentFile ?? "No file open";
+        allUsers.push(user);
+        usersByFile[currentFile] = usersByFile[currentFile] || [];
+        usersByFile[currentFile].push(user);
+      }
+    });
+
+    return { allUsers, usersByFile };
+  }, [others, self]);
+
+  /** ✅ Close dropdown on outside click */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  /** ✅ Helpers */
+  const getFileDisplayName = (filePath: string) =>
+    filePath === "No file open" ? filePath : filePath.split("/").pop() || filePath;
+
+  const getLastActivity = (timestamp?: number) => {
+    if (!timestamp) return "Now";
+    const diff = Date.now() - timestamp;
+    if (diff < 60000) return "Now";
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    return `${Math.floor(diff / 3600000)}h ago`;
   };
 
   return (
-    <div className="relative flex items-center w-full h-12 px-4 border border-neutral-800 rounded-lg bg-[#0a0a0a] shadow-lg text-white">
-      {/* Left Section */}
-      <div className="flex items-center space-x-4">
-        <Image src="/logo.png" alt="logo" width={120} height={14} />
-
-        {/* Menu Buttons */}
-        <div className="flex items-center text-sm text-gray-300 relative">
-          {Object.keys(menus).map((item) => (
-            <div key={item} className="relative">
-              <button
-                onClick={() => handleMenuToggle(item)}
-                className="hover:text-orange-400 transition-colors px-2 py-1"
-              >
-                {item}
-              </button>
-              {openMenu === item && (
-                <div className="absolute top-full left-0 mt-1 w-40 bg-neutral-900 border border-neutral-800 rounded-md shadow-lg z-50">
-                  {menus[item].map((option, i) => (
-                    <button
-                      key={i}
-                      className={`block w-full text-left px-4 py-2 text-gray-300 hover:bg-neutral-800 hover:text-orange-400 text-sm ${
-                        i !== menus[item].length - 1
-                          ? "border-b border-neutral-700"
-                          : ""
-                      }`}
-                      onClick={() => setOpenMenu(null)}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+    <div className="w-full h-12 flex items-center justify-between px-4 bg-neutral-950 border-b border-neutral-800">
+      {/* ✅ Left: Project Info */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Image src="/logo.png" alt="logo" width={120} height={14} />
+        </div>
+        <div className="flex items-center gap-1 text-m text-neutral-400">
+          <Folder className="w-4 h-4" />
+          <span>project-id/project-name</span>
         </div>
       </div>
 
-      {/* Center Section */}
-      <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center space-x-4">
-        <div className="flex items-center space-x-1">
-          <button className="p-2 hover:bg-neutral-800 rounded-md transition">
-            <ChevronLeft className="w-5 h-5 text-gray-400 hover:text-orange-400" />
-          </button>
-          <button className="p-2 hover:bg-neutral-800 rounded-md transition">
-            <ChevronRight className="w-5 h-5 text-gray-400 hover:text-orange-400" />
-          </button>
-        </div>
-
-        <div className="flex items-center space-x-1 text-gray-300 text-sm font-medium">
-          <span>{username}</span>
-          <span>/</span>
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              spellCheck={false}
-              className="w-full bg-neutral-900 text-gray-200 placeholder-gray-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring focus:ring-orange-400"
-              required
-            />
+      {/* ✅ Center: Connection & Time */}
+      <div className="flex items-center gap-4 text-sm text-neutral-400">
+        <div className="flex items-center gap-2">
+          {isConnected ? (
+            <>
+              <Wifi className="w-4 h-4 text-green-400" />
+              <span className="text-green-400">Connected</span>
+            </>
           ) : (
-            <span
-              className="hover:text-orange-400 cursor-pointer"
-              onClick={handleEditClick}
-            >
-              {projectName}
-            </span>
+            <>
+              <WifiOff className="w-4 h-4 text-red-400" />
+              <span className="text-red-400">Offline</span>
+            </>
           )}
         </div>
-
-        <div className="relative">
-          <button
-            onClick={() => setOpenShareMenu(!openShareMenu)}
-            className="flex items-center space-x-2 px-3 py-1 border border-neutral-700 rounded-md text-sm hover:border-orange-400 hover:text-orange-400 transition"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>Share</span>
-          </button>
-
-          {/* Share Dialog */}
-          {openShareMenu &&
-            createPortal(
-              <div className="fixed inset-0 flex items-center justify-center z-[9999] bg-black/50 text-gray-300">
-                <div className="bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl p-4 w-96 relative">
-                  {/* Header */}
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-semibold">
-                      Share "{projectName}"
-                    </h3>
-                    <button
-                      onClick={() => setOpenShareMenu(false)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Input */}
-                  <input
-                    type="text"
-                    placeholder="Add people, groups, and calendar events"
-                    className="w-full bg-neutral-800 text-gray-200 placeholder-gray-500 rounded-md px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  />
-
-                  {/* People with access */}
-                  <div className="mb-4">
-                    <h4 className="text-xs text-gray-400 mb-2">
-                      People with access
-                    </h4>
-                    <div className="flex items-center justify-between text-sm">
-                      <div>
-                        <p>Biplab Mohanty (you)</p>
-                        <p className="text-gray-500 text-xs">Owner</p>
-                      </div>
-                      <span className="text-gray-400 text-xs">Owner</span>
-                    </div>
-                  </div>
-
-                  {/* General access */}
-                  <div className="mb-4">
-                    <h4 className="text-xs text-gray-400 mb-2">
-                      General access
-                    </h4>
-                    <div className="flex items-center justify-between border border-neutral-700 rounded-md px-3 py-2 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-gray-400">Restricted</span>
-                      </div>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <p className="text-gray-500 text-xs mt-1">
-                      Only people with access can open with the link
-                    </p>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex justify-between items-center mt-4">
-                    <button className="flex items-center space-x-1 px-3 py-2 text-sm border border-neutral-700 rounded-md hover:border-orange-400 hover:text-orange-400 transition">
-                      <Copy className="w-4 h-4" />
-                      <span>Copy link</span>
-                    </button>
-                    <button
-                      onClick={() => setOpenShareMenu(false)}
-                      className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-semibold"
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              </div>,
-              document.body
-            )}
+        <div className="hidden md:flex items-center gap-1">
+          <Terminal className="w-4 h-4" />
+          <span>Ready</span>
         </div>
+        <div className="text-neutral-500">{formatTime(currentTime)}</div>
       </div>
 
-      {/* Right Section */}
-      <div className="ml-auto flex items-center space-x-4 w-100">
-        <div className="relative w-full">
-          <input
-            type="text"
-            placeholder="Search..."
-            spellCheck={false}
-            className="w-full bg-neutral-900 text-gray-200 placeholder-gray-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring focus:ring-orange-400"
-          />
-          <Search className="absolute right-3 top-2.5 w-5 h-5 text-gray-500" />
-        </div>
+      {/* ✅ Right: Users + Settings */}
+      <div className="flex items-center gap-3 relative" ref={dropdownRef}>
+        {/* ✅ Users Dropdown */}
+        <button
+          onClick={() => setShowDropdown((prev) => !prev)}
+          className="flex items-center gap-2 px-3 py-2 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-300 hover:text-white"
+        >
+          <div className="flex -space-x-2">
+            {allUsers.slice(0, 3).map((user) => (
+              <Avatar key={user.id} user={user} size="sm" />
+            ))}
+            {allUsers.length > 3 && (
+              <div className="w-6 h-6 rounded-full bg-neutral-600 border-2 border-neutral-900 flex items-center justify-center">
+                <span className="text-[10px] text-white font-bold">
+                  +{allUsers.length - 3}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Users className="w-4 h-4" />
+            <span className="text-sm font-medium">{allUsers.length}</span>
+            <ChevronDown
+              className={`w-3 h-3 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+            />
+          </div>
+        </button>
+
+        {/* ✅ Dropdown */}
+        {showDropdown && (
+          <div className="absolute top-14 right-0 w-80 max-h-96 bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl z-50 overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="p-3 border-b border-neutral-700 flex justify-between">
+              <h3 className="text-sm font-medium text-neutral-200">
+                Active Users ({allUsers.length})
+              </h3>
+              <span className="text-xs text-neutral-400">
+                Files: {Object.keys(usersByFile).length}
+              </span>
+            </div>
+
+            {/* User List */}
+            <div className="max-h-80 overflow-y-auto p-2 space-y-4">
+              {Object.entries(usersByFile).map(([filePath, users]) => (
+                <div key={filePath}>
+                  <div className="flex items-center gap-2 px-2 py-1 bg-neutral-800 rounded text-xs mb-2">
+                    <div className="w-2 h-2 rounded-full bg-neutral-500" />
+                    <span className="text-neutral-300 font-mono truncate flex-1">
+                      {getFileDisplayName(filePath)}
+                    </span>
+                    <span className="text-neutral-500">({users.length})</span>
+                  </div>
+                  <div className="space-y-1">
+                    {users.map((user) => {
+                      const isCurrentUser = user.id === self?.id;
+                      const otherUser = others.find((o) => o.id === user.id);
+                      const lastActivity = otherUser?.presence?.timestamp;
+                      return (
+                        <div
+                          key={user.id}
+                          className="flex items-center gap-3 p-2 hover:bg-neutral-800 rounded transition-colors"
+                        >
+                          <Avatar user={user} size="md" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-neutral-200 truncate">
+                                {user.name}
+                              </span>
+                              {isCurrentUser && (
+                                <span className="text-xs text-neutral-500">(You)</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-neutral-500">
+                              <div
+                                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                                style={{ backgroundColor: user.color }}
+                              />
+                              <span>{getLastActivity(lastActivity)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="p-2 border-t border-neutral-700 bg-neutral-800 text-xs text-neutral-400 flex justify-between items-center">
+              <span>Real-time collaboration</span>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span>Connected</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-};
+}
 
-export default Topbar;
+/** ✅ Avatar Subcomponent */
+function Avatar({ user, size }: { user: User; size: "sm" | "md" }) {
+  const sizeClasses = size === "sm" ? "w-6 h-6 border-2" : "w-7 h-7 border";
+  return (
+    <div
+      className={`${sizeClasses} rounded-full flex items-center justify-center text-white text-xs font-medium border-neutral-900`}
+      style={{ backgroundColor: user.color }}
+      title={user.name}
+    >
+      {user.avatar ? (
+        <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
+      ) : (
+        user.name.charAt(0).toUpperCase()
+      )}
+    </div>
+  );
+}
